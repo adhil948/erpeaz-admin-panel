@@ -7,3 +7,7 @@ export async function fetchSites() {
 }
 
 
+export async function fetchSiteById(id) {
+  const res = await axios.get(`/api/sites/${id}`);
+  return res.data; // single site object
+}

@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'; // Create this next
 import SitesTable from './pages/SitesTable';
 import { ThemeProviderWrapper } from './components/ThemeProviderWrapper';
 import Layout from './components/layout/Layout';
+import SiteDetails from './pages/SiteDetails'; 
 
 function App() {
   const [token, setToken] = useState(null);
@@ -61,6 +62,16 @@ function App() {
             }
           />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          // in App.js routes
+<Route
+  path="/sites/:id"
+  element={
+    <PrivateRoute token={token}>
+      <SiteDetails />
+    </PrivateRoute>
+  }
+/>
+
         </Routes>
       </Layout>
     </Router>

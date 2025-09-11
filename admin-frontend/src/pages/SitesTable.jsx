@@ -161,11 +161,11 @@ const columns = [
             sx={{ width: 160 }}
           >
             <MenuItem value="all">All</MenuItem>
-            <MenuItem value="basic">Basic</MenuItem>
-            <MenuItem value="professional">Professional</MenuItem>
-            <MenuItem value="enterprise">Enterprise</MenuItem>
-            <MenuItem value="ultimate">Ultimate</MenuItem>
-            <MenuItem value="premium">Premium</MenuItem>
+            <MenuItem value="Basic">Basic</MenuItem>
+            <MenuItem value="Professional">Professional</MenuItem>
+            <MenuItem value="Enterprise">Enterprise</MenuItem>
+            <MenuItem value="Ultimate">Ultimate</MenuItem>
+            <MenuItem value="Premium">Premium</MenuItem>
           </TextField>
         </Stack>
 

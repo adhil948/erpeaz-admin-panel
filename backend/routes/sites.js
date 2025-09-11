@@ -24,4 +24,21 @@ router.get('/', async (req, res) => {
   }
 });
 
+router.get('/:id', async (req, res) => {
+  try {
+    // If upstream supports /site-details/:id, prefer that:
+    // const resp = await axios.get(`${EXTERNAL_API_BASE_URL}/site-details/${req.params.id}`);
+    // return res.json(resp.data);
+
+    // Otherwise, fetch all and filter locally:
+    const resp = await axios.get(`${EXTERNAL_API_BASE_URL}/site-details`);
+    const list = Array.isArray(resp.data?.data) ? resp.data.data : [];
+    const site = list.find(s => s._id === req.params.id);
+    if (!site) return res.status(404).json({ error: 'Not found' });
+    res.json(site);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch site' });
+  }
+});
+
 module.exports = router;
