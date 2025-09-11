@@ -5,7 +5,7 @@ const ExpenseSchema = new mongoose.Schema(
   {
     siteId: { type: String, required: true, index: true }, // external site's _id as string
     amount: { type: Number, required: true, min: 0 },
-    kind: { type: String, enum: ['spent', 'planned', 'due'], required: true },
+    kind: { type: String, enum: ['recieved', 'planned', 'due'], required: true },
     note: { type: String, trim: true },
     date: { type: Date, default: Date.now },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }

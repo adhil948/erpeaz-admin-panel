@@ -20,7 +20,7 @@ export default function ExpensesSection({ siteId }) {
   const [open, setOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [editing, setEditing] = React.useState(null);
-  const [form, setForm] = React.useState({ amount: '', kind: 'spent', date: '', note: '' });
+  const [form, setForm] = React.useState({ amount: '', kind: 'recieved', date: '', note: '' });
 
   const load = React.useCallback(async () => {
     const [items, sums] = await Promise.all([
@@ -55,14 +55,14 @@ export default function ExpensesSection({ siteId }) {
 
   function openAdd() {
     setEditing(null);
-    setForm({ amount: '', kind: 'spent', date: new Date().toISOString().slice(0, 10), note: '' });
+    setForm({ amount: '', kind: 'recieved', date: new Date().toISOString().slice(0, 10), note: '' });
     setOpen(true);
   }
   function onEdit(row) {
     setEditing(row);
     setForm({
       amount: String(row.amount ?? ''),
-      kind: row.kind || 'spent',
+      kind: row.kind || 'recieved',
       date: row.date ? new Date(row.date).toISOString().slice(0, 10) : '',
       note: row.note || ''
     });
@@ -101,9 +101,9 @@ async function onSave() {
 
       {summary && (
         <Stack direction="row" spacing={2} mb={2} flexWrap="wrap">
-          <Chip label={`Spent: ${currency(summary.spent?.total || 0)} (${summary.spent?.count || 0})`} color="warning" />
-          <Chip label={`Planned: ${currency(summary.planned?.total || 0)} (${summary.planned?.count || 0})`} color="info" />
-          <Chip label={`Due: ${currency(summary.due?.total || 0)} (${summary.due?.count || 0})`} color="warning" />
+          <Chip label={`Recieved: ${currency(summary.recieved?.total || 0)} (${summary.recieved?.count || 0})`} color="info" />
+          {/* <Chip label={`Planned: ${currency(summary.planned?.total || 0)} (${summary.planned?.count || 0})`} color="info" /> */}
+          <Chip label={`Due: ${currency(summary.due?.total || 0)} (${summary.due?.count || 0})`} color="error" />
         </Stack>
       )}
 
@@ -125,7 +125,7 @@ async function onSave() {
                        onChange={(e) => setForm(f => ({ ...f, amount: e.target.value }))} required />
             <TextField label="Type" select value={form.kind}
                        onChange={(e) => setForm(f => ({ ...f, kind: e.target.value }))}>
-              <MenuItem value="spent">Spent</MenuItem>
+              <MenuItem value="recieved">Recieved</MenuItem>
               <MenuItem value="planned">Planned</MenuItem>
               <MenuItem value="due">Due</MenuItem>
             </TextField>

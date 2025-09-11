@@ -18,7 +18,7 @@ router.post('/', async (req, res) => {
   try {
     const { amount, kind, note, date } = req.body;
     if (amount == null || Number.isNaN(Number(amount))) return res.status(400).json({ error: 'amount is required' });
-    if (!['spent', 'planned', 'due'].includes(kind)) return res.status(400).json({ error: 'invalid kind' });
+    if (!['recieved', 'planned', 'due'].includes(kind)) return res.status(400).json({ error: 'invalid kind' });
     const doc = await Expense.create({
       siteId: req.params.siteId,
       amount: Number(amount),
@@ -67,7 +67,7 @@ router.get('/summary', async (req, res) => {
       { $match: { siteId: req.params.siteId } },
       { $group: { _id: '$kind', total: { $sum: '$amount' }, count: { $sum: 1 } } },
     ]);
-    const summary = { spent: { total: 0, count: 0 }, planned: { total: 0, count: 0 }, due: { total: 0, count: 0 } };
+    const summary = { recieved: { total: 0, count: 0 }, planned: { total: 0, count: 0 }, due: { total: 0, count: 0 } };
     rows.forEach(r => { summary[r._id] = { total: r.total, count: r.count }; });
     res.json(summary);
   } catch {
