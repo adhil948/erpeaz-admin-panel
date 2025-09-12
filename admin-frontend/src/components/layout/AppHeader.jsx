@@ -212,7 +212,7 @@ export default function AppHeader({
               onClick={async () => {
                 setNotifPanelOpen(true);
                 markAllRead();
-                  // try { await apiMarkAllRead(); }  catch (e) {"markread error"}
+                  try { await apiMarkAllRead(); }  catch (e) {"markread error"}
               }}
             >
               <Badge badgeContent={unreadCount} color="secondary" max={99}>
