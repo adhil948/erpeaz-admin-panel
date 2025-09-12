@@ -14,13 +14,14 @@ import {
 
 function currency(n) { return `₹${Number(n || 0).toLocaleString()}`; }
 
-export default function ExpensesSection({ siteId }) {
+export default function ExpensesSection({ siteId, onSummaryChange = () => {} }) {
   const [rows, setRows] = React.useState([]);
   const [summary, setSummary] = React.useState(null);
   const [open, setOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [editing, setEditing] = React.useState(null);
   const [form, setForm] = React.useState({ amount: '', kind: 'recieved', date: '', note: '' });
+
 
   const load = React.useCallback(async () => {
     const [items, sums] = await Promise.all([
@@ -29,7 +30,9 @@ export default function ExpensesSection({ siteId }) {
     ]);
     setRows(items.map(i => ({ ...i, id: i._id })));
     setSummary(sums);
-  }, [siteId]);
+    // NEW: lift summary up so parent can compute totals
+    onSummaryChange?.(sums);
+  }, [siteId, onSummaryChange]);
 
   React.useEffect(() => { if (siteId) load(); }, [siteId, load]);
 
@@ -69,34 +72,32 @@ export default function ExpensesSection({ siteId }) {
     setOpen(true);
   }
 // Delete
-async function onDelete(row) {
-  if (!window.confirm('Delete this expense?')) return;
-  await deleteExpense(siteId, row._id);   // CHANGED: include siteId
-  await load();
-}
-async function onSave() {
-  setBusy(true);
-  const payload = {
-    amount: Number(form.amount),
-    kind: form.kind,
-    date: form.date ? new Date(form.date).toISOString() : undefined,
-    note: form.note
-  };
-  if (editing) {
-    await updateExpense(siteId, editing._id, payload);  // CHANGED: include siteId
-  } else {
-    await createExpense(siteId, payload);
+  async function onDelete(row) {
+    if (!window.confirm('Delete this expense?')) return;
+    await deleteExpense(siteId, row._id);  // ensure nested URL usage
+    await load(); // triggers onSummaryChange with fresh sums
   }
-  setBusy(false);
-  setOpen(false);
-  await load();
-}
+
+  async function onSave() {
+    setBusy(true);
+    const payload = {
+      amount: Number(form.amount),
+      kind: form.kind,
+      date: form.date ? new Date(form.date).toISOString() : undefined,
+      note: form.note
+    };
+    if (editing) await updateExpense(siteId, editing._id, payload);
+    else await createExpense(siteId, payload);
+    setBusy(false);
+    setOpen(false);
+    await load(); // triggers onSummaryChange with fresh sums
+  }
 
   return (
     <Paper sx={{ p: 2, borderRadius: 2 }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
         <Typography variant="subtitle1">Payments</Typography>
-        <Button startIcon={<AddIcon />} variant="contained" onClick={openAdd}>Add Expense</Button>
+        <Button startIcon={<AddIcon />} variant="contained" onClick={openAdd}>Add Payment</Button>
       </Stack>
 
       {summary && (
