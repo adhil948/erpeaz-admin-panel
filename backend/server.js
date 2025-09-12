@@ -3,11 +3,22 @@ const cors = require('cors');
 const connectDB = require('./db');
 const authRoutes = require('./routes/auth');  // Import auth routes
 const sitesRoutes = require('./routes/sites');
+const notificationsRouter = require('./routes/notifications');
+const { startSiteNotificationJob } = require('./jobs/siteNotifications');
+// server.js (continued)
+const { router: sseRouter, attachBroadcast } = require('./routes/notifications-sse');
+
+
 
 require('dotenv').config();
 
-
 const app = express();
+
+// set once (optional default), then attach the broadcaster which overwrites it
+app.set('notifyBroadcast', null);
+attachBroadcast(app); // this should be after the default and not overwritten later
+
+
 
 connectDB();
 
@@ -17,6 +28,14 @@ app.use(express.json());
 // Use the auth routes under /api/auth path
 app.use('/api/auth', authRoutes);
 app.use('/api/sites', sitesRoutes);
+app.use('/api/notifications', notificationsRouter);
+app.use('/api/notifications', sseRouter);
+
+
+app.set('notifyBroadcast', null);
+
+// Start background job
+startSiteNotificationJob(app);
 
 // Optional: test root endpoint
 app.get('/', (req, res) => {
