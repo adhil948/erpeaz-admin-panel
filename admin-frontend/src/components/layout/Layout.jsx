@@ -8,7 +8,7 @@ const drawerWidth = 240;
 const collapsedWidth = 68;
 
 export default function Layout({ children, onLogout }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
