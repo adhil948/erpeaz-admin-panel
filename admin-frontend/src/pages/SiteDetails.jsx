@@ -16,6 +16,7 @@ import {
 import { Alert } from "@mui/material";
 import { fetchSiteById } from "../api/sites";
 import ExpensesSection from "../components/ExpensesSection";
+import RevenueSection from "../components/revenueSection"; 
 
 const MS_14_DAYS = 14 * 24 * 60 * 60 * 1000;
 
@@ -407,7 +408,7 @@ export default function SiteDetails() {
           </Grid>
 
           {/* Right: Business metrics */}
-          <Grid item xs={12} md={5}>
+          {/* <Grid item xs={12} md={5}>
             <Card
               elevation={0}
               sx={{
@@ -455,7 +456,11 @@ export default function SiteDetails() {
                 </Stack>
               </CardContent>
             </Card>
-          </Grid>
+          </Grid> */}
+
+          <Grid item xs={12}>
+  <RevenueSection siteId={siteId} />
+</Grid>
 
           {/* Full-width: Expenses (reusable) */}
           <Grid item xs={12}>

@@ -4,6 +4,7 @@ const connectDB = require('./db');
 const authRoutes = require('./routes/auth');  // Import auth routes
 const sitesRoutes = require('./routes/sites');
 const notificationsRouter = require('./routes/notifications');
+const revenueRoutes = require('./routes/revenue')
 const { startSiteNotificationJob } = require('./jobs/siteNotifications');
 // server.js (continued)
 const { router: sseRouter, attachBroadcast } = require('./routes/notifications-sse');
@@ -30,6 +31,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/sites', sitesRoutes);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/notifications', sseRouter);
+app.use('/api', revenueRoutes);
 
 
 app.set('notifyBroadcast', null);
