@@ -13,6 +13,7 @@ import {
   Card,
   CardContent,
 } from "@mui/material";
+import { Alert } from "@mui/material";
 import { fetchSiteById } from "../api/sites";
 import ExpensesSection from "../components/ExpensesSection";
 
@@ -55,6 +56,8 @@ export default function SiteDetails() {
   const [totalRevenue, setTotalRevenue] = React.useState(0);
   const [arpu, setArpu] = React.useState(0);
 
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
   const handleSummaryChange = React.useCallback(
     (sums) => {
       const received = sums?.received?.total ?? null;
@@ -67,6 +70,33 @@ export default function SiteDetails() {
     },
     [site?.user]
   );
+
+  // Date helpers
+  function toDateSafe(v) {
+    const d = v ? new Date(v) : null;
+    return d && !isNaN(d.getTime()) ? d : null;
+  }
+
+  function addDays(date, days) {
+    if (!date || isNaN(date.getTime())) return null;
+    const d = new Date(date.getTime());
+    d.setDate(d.getDate() + days);
+    return d;
+  }
+
+  function addMonths(date, months) {
+    if (!date || isNaN(date.getTime())) return null;
+    const d = new Date(date.getTime());
+    d.setMonth(d.getMonth() + months); // handles month/year rollover
+    return d;
+  }
+
+  function daysDiff(to, from) {
+    if (!to || !from) return null;
+    const end = new Date(to.getFullYear(), to.getMonth(), to.getDate());
+    const start = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+    return Math.ceil((end.getTime() - start.getTime()) / MS_PER_DAY);
+  }
 
   React.useEffect(() => {
     if (site) return;
@@ -87,11 +117,33 @@ export default function SiteDetails() {
     };
   }, [id, site]);
 
+  // Plan/trial logic
+  const planKey = String(site?.plan || "").toLowerCase();
+
   const createdAt = site?.created_at;
+  const createdAtDate = toDateSafe(createdAt);
   const trial = isInTrial(createdAt);
-  const trialEnds = createdAt
-    ? new Date(new Date(createdAt).getTime() + MS_14_DAYS)
-    : null;
+  const trialEnds = createdAtDate ? addDays(createdAtDate, 14) : null;
+
+  // 6 months for basic starts AFTER the 14-day trial ends (trialEnds + 6 months)
+  // Fallback to previous start logic if trialEnds is unavailable
+  const basicStartFallback =
+    toDateSafe(site?.plan_started_at) ||
+    toDateSafe(site?.subscription_start) ||
+    createdAtDate ||
+    toDateSafe(site?.updated_at);
+
+  const basicExpiry =
+    planKey === "basic"
+      ? trialEnds
+        ? addMonths(trialEnds, 6)
+        : basicStartFallback
+        ? addMonths(basicStartFallback, 6)
+        : null
+      : null;
+
+  const daysToBasicExpiry = basicExpiry ? daysDiff(basicExpiry, new Date()) : null;
+  const basicExpired = daysToBasicExpiry != null && daysToBasicExpiry < 0;
 
   if (loading) {
     return (
@@ -178,6 +230,19 @@ export default function SiteDetails() {
                 flexWrap="wrap"
                 useFlexGap
               >
+                {planKey === "basic" && basicExpiry && (
+                  <Chip
+                    label={`Basic ends: ${formatDate(basicExpiry)} ${
+                      daysToBasicExpiry >= 0
+                        ? `(${daysToBasicExpiry} days left)`
+                        : `(expired ${Math.abs(daysToBasicExpiry)} days ago)`
+                    }`}
+                    size="small"
+                    variant="outlined"
+                    color={daysToBasicExpiry >= 0 ? "warning" : "error"}
+                    sx={{ height: "auto", px: 1 }}
+                  />
+                )}
                 <Typography variant="h6" fontWeight="medium">
                   {site.name || "Unnamed"}
                 </Typography>
@@ -211,6 +276,31 @@ export default function SiteDetails() {
                 )}
               </Stack>
             </Paper>
+
+            {planKey === "basic" && basicExpiry && (
+              <Box sx={{ mt: 2 }}>
+                <Paper elevation={0} sx={{ p: 0 }}>
+                  <Alert
+                    severity={
+                      basicExpired
+                        ? "error"
+                        : daysToBasicExpiry <= 30
+                        ? "warning"
+                        : "info"
+                    }
+                    variant="outlined"
+                  >
+                    {basicExpired
+                      ? `Basic plan expired ${Math.abs(
+                          daysToBasicExpiry
+                        )} days ago on ${formatDate(basicExpiry)}.`
+                      : `Basic plan ends on ${formatDate(
+                          basicExpiry
+                        )} — ${daysToBasicExpiry} days remaining.`}
+                  </Alert>
+                </Paper>
+              </Box>
+            )}
           </Grid>
 
           {/* Left: Organization details */}
@@ -287,7 +377,6 @@ export default function SiteDetails() {
                   <Typography variant="body1">
                     {siteUrlDisplay(site.site_url)}
                   </Typography>
-
                   {/* Optional extra chips when site_url is an object */}
                   {/* {isPlainObject(site.site_url) && (
                     <Stack direction="row" spacing={1} mt={1} flexWrap="wrap" useFlexGap>
