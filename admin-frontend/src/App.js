@@ -6,7 +6,9 @@ import Dashboard from './pages/Dashboard'; // Create this next
 import SitesTable from './pages/SitesTable';
 import { ThemeProviderWrapper } from './components/ThemeProviderWrapper';
 import Layout from './components/layout/Layout';
-import SiteDetails from './pages/SiteDetails'; 
+import SiteDetails from './pages/SiteDetails';
+import FiscalRevenue from './pages/FiscalRevenue'; 
+import RevenueSectionFY from './components/RevenueSectionFY';
 
 function App() {
   const [token, setToken] = useState(null);
@@ -58,6 +60,14 @@ function App() {
             element={
               <PrivateRoute token={token}>
                 <SitesTable />
+              </PrivateRoute>
+            }
+          />
+                    <Route
+            path="/revenue"
+            element={
+              <PrivateRoute token={token}>
+                <RevenueSectionFY />
               </PrivateRoute>
             }
           />

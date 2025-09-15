@@ -11,6 +11,7 @@ import {
   Box,
   IconButton,
 } from '@mui/material';
+import CurrencyRupeeIcon from '@mui/icons-material/CurrencyRupee';
 import {
   Dashboard as DashboardIcon,
   TableRows as TableRowsIcon,
@@ -37,6 +38,7 @@ export default function SideNavigation({
   const navItems = [
     { label: 'Dashboard', path: '/dashboard', icon: <DashboardIcon /> },
     { label: 'Sites', path: '/sites', icon: <TableRowsIcon /> },
+    { label: 'Revenue', path: '/revenue', icon: <CurrencyRupeeIcon /> },
   ];
 
   const drawerContent = (
