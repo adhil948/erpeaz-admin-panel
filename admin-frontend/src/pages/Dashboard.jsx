@@ -409,11 +409,14 @@ const DataCard = ({ title, items, renderSecondary, emptyText = "No data" }) => {
         ))}
       </Grid>
 
-
+{/* Divider with padding */}
+<Box sx={{ my: 4 }}>
+  <Divider />
+</Box>
 
       {/* New data cards */}
       <Grid container spacing={3}  >
-        <Grid item xs={12} md={6} lg={6} sx={{minWidth:250}} >
+        <Grid item xs={12} md={6} lg={6} sx={{minWidth:420}} >
           <DataCard
             title="Recently Created"
             items={recentSites}
@@ -431,7 +434,7 @@ const DataCard = ({ title, items, renderSecondary, emptyText = "No data" }) => {
           />
         </Grid>
 
-        <Grid item xs={12} md={6} lg={6} sx={{minWidth:250}}>
+        <Grid item xs={12} md={6} lg={6} sx={{minWidth:420}}>
           <DataCard
             title="In Trial"
             items={trialSites}
@@ -444,7 +447,7 @@ const DataCard = ({ title, items, renderSecondary, emptyText = "No data" }) => {
           />
         </Grid>
 
-        <Grid item xs={12} md={6} lg={6} sx={{minWidth:250}}>
+        <Grid item xs={12} md={6} lg={6} sx={{minWidth:420}}>
           <DataCard
             title="Expired Plans"
             items={expiredSites}
@@ -457,7 +460,7 @@ const DataCard = ({ title, items, renderSecondary, emptyText = "No data" }) => {
           />
         </Grid>
 
-        <Grid item xs={12} md={6} lg={6} sx={{minWidth:250}}>
+        <Grid item xs={12} md={6} lg={6} sx={{minWidth:420}}>
           <DataCard
             title="Upcoming Renewals "
             items={nearRenewalSites}
