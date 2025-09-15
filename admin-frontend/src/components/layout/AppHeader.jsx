@@ -1,5 +1,6 @@
 // AppHeader.jsx (updated)
 import React, { useMemo, useState, useCallback, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   AppBar,
   Toolbar,
@@ -50,6 +51,8 @@ export default function AppHeader({
     () => notifications.filter((n) => !n.read).length,
     [notifications]
   );
+
+  const navigate = useNavigate();
 
   // Snackbar state
   const [snack, setSnack] = useState({
@@ -162,13 +165,15 @@ export default function AppHeader({
         src={Logo}
         alt="Logo"
         sx={{ height: 40, cursor: "pointer" }}
+        onClick={() => {
+                navigate('/dashboard');}}
       />
 
       {/* Spacer pushes everything else to the right */}
       <Box sx={{ flexGrow: 1 }} />
 
       {/* Search box */}
-      <Box
+      {/* <Box
         sx={{
           position: "relative",
           borderRadius: 1,
@@ -203,7 +208,7 @@ export default function AppHeader({
           }}
           inputProps={{ "aria-label": "search" }}
         />
-      </Box>
+      </Box> */}
 
       {/* Theme toggle */}
       <Tooltip title="Toggle light/dark theme">
