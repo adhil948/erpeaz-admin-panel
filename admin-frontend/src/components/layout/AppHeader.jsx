@@ -137,144 +137,161 @@ export default function AppHeader({
   }, [sites, addNotification]);
 
   return (
-    <>
-      <AppBar
-        position="fixed"
-        color="primary"
-        elevation={0}
-        sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}
+<>
+  <AppBar
+    position="fixed"
+    color="primary"
+    elevation={0}
+    sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}
+  >
+    <Toolbar sx={{ pr: 2 }}>
+      {/* Menu button */}
+      <IconButton
+        edge="start"
+        color="inherit"
+        onClick={onOpenSidebar}
+        sx={{ mr: 2, display: { sm: "block" } }}
+        aria-label="toggle drawer"
       >
-        <Toolbar sx={{ pr: 2 }}>
-          <IconButton
-            edge="start"
-            color="inherit"
-            onClick={onOpenSidebar}
-            sx={{ mr: 2, display: { sm: "block" } }}
-            aria-label="toggle drawer"
-          >
-            <MenuIcon />
-          </IconButton>
+        <MenuIcon />
+      </IconButton>
 
-          <Box
-            component="img"
-            src={Logo}
-            alt="Logo"
-            sx={{ height: 40, flexGrow: 1, cursor: "pointer" }}
-          />
-
-          <Box
-            sx={{
-              position: "relative",
-              borderRadius: 1,
-              backgroundColor: alpha("#fff", 0.15),
-              "&:hover": { backgroundColor: alpha("#fff", 0.25) },
-              width: { xs: "0", sm: "auto" },
-              transition: "width 0.3s",
-              mr: 2,
-              display: { xs: "none", sm: "block" },
-            }}
-          >
-            <Box
-              sx={{
-                pl: 2,
-                pr: 1,
-                height: "100%",
-                position: "absolute",
-                pointerEvents: "none",
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              🔍
-            </Box>
-            <InputBase
-              placeholder="Search…"
-              sx={{
-                color: "inherit",
-                pl: 5,
-                width: 220,
-                transition: "width 0.3s",
-              }}
-              inputProps={{ "aria-label": "search" }}
-            />
-          </Box>
-
-          <Tooltip title="Toggle light/dark theme">
-            <IconButton color="inherit" onClick={toggleMode} sx={{ ml: 1 }}>
-              {mode === "dark" ? <Brightness7Icon /> : <Brightness4Icon />}
-            </IconButton>
-          </Tooltip>
-
-          <Tooltip title="Notifications">
-            <IconButton
-              color="inherit"
-              sx={{ ml: 1 }}
-              onClick={async () => {
-                setNotifPanelOpen(true);
-                markAllRead();
-                  try { await apiMarkAllRead(); }  catch (e) {"markread error"}
-              }}
-            >
-              <Badge badgeContent={unreadCount} color="secondary" max={99}>
-                <NotificationsIcon />
-              </Badge>
-            </IconButton>
-          </Tooltip>
-
-          <Tooltip title="Profile">
-            <IconButton
-              color="inherit"
-              sx={{ ml: 1 }}
-              onClick={openProfileMenu}
-            >
-              <Avatar sx={{ bgcolor: "secondary.main" }}>A</Avatar>
-            </IconButton>
-          </Tooltip>
-
-          <Menu
-            anchorEl={profileAnchor}
-            open={Boolean(profileAnchor)}
-            onClose={closeProfileMenu}
-          >
-            <MenuItem onClick={closeProfileMenu}>Profile</MenuItem>
-            <MenuItem onClick={closeProfileMenu}>Settings</MenuItem>
-            <MenuItem
-              onClick={() => {
-                closeProfileMenu();
-                onLogout?.();
-              }}
-            >
-              Logout
-            </MenuItem>
-          </Menu>
-        </Toolbar>
-      </AppBar>
-
-      <NotificationsPanel
-        open={notifPanelOpen}
-        onClose={() => setNotifPanelOpen(false)}
-        notifications={notifications}
-        onMarkAllRead={markAllRead}
+      {/* Logo */}
+      <Box
+        component="img"
+        src={Logo}
+        alt="Logo"
+        sx={{ height: 40, cursor: "pointer" }}
       />
 
-      <Snackbar
-        open={snack.open}
-        autoHideDuration={4000}
-        onClose={(_, reason) => {
-          if (reason === "clickaway") return;
-          closeSnack();
+      {/* Spacer pushes everything else to the right */}
+      <Box sx={{ flexGrow: 1 }} />
+
+      {/* Search box */}
+      <Box
+        sx={{
+          position: "relative",
+          borderRadius: 1,
+          backgroundColor: alpha("#fff", 0.15),
+          "&:hover": { backgroundColor: alpha("#fff", 0.25) },
+          width: { xs: "0", sm: "auto" },
+          transition: "width 0.3s",
+          mr: 2,
+          display: { xs: "none", sm: "block" },
         }}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
-        <Alert
-          onClose={closeSnack}
-          severity={snack.severity}
-          variant="filled"
-          sx={{ width: "100%" }}
+        <Box
+          sx={{
+            pl: 2,
+            pr: 1,
+            height: "100%",
+            position: "absolute",
+            pointerEvents: "none",
+            display: "flex",
+            alignItems: "center",
+          }}
         >
-          {snack.message}
-        </Alert>
-      </Snackbar>
-    </>
+          🔍
+        </Box>
+        <InputBase
+          placeholder="Search…"
+          sx={{
+            color: "inherit",
+            pl: 5,
+            width: 220,
+            transition: "width 0.3s",
+          }}
+          inputProps={{ "aria-label": "search" }}
+        />
+      </Box>
+
+      {/* Theme toggle */}
+      <Tooltip title="Toggle light/dark theme">
+        <IconButton color="inherit" onClick={toggleMode} sx={{ ml: 1 }}>
+          {mode === "dark" ? <Brightness7Icon /> : <Brightness4Icon />}
+        </IconButton>
+      </Tooltip>
+
+      {/* Notifications */}
+      <Tooltip title="Notifications">
+        <IconButton
+          color="inherit"
+          sx={{ ml: 1 }}
+          onClick={async () => {
+            setNotifPanelOpen(true);
+            markAllRead();
+            try {
+              await apiMarkAllRead();
+            } catch (e) {
+              console.log("markread error");
+            }
+          }}
+        >
+          <Badge badgeContent={unreadCount} color="secondary" max={99}>
+            <NotificationsIcon />
+          </Badge>
+        </IconButton>
+      </Tooltip>
+
+      {/* Profile */}
+      <Tooltip title="Profile">
+        <IconButton
+          color="inherit"
+          sx={{ ml: 1 }}
+          onClick={openProfileMenu}
+        >
+          <Avatar sx={{ bgcolor: "secondary.main" }}>A</Avatar>
+        </IconButton>
+      </Tooltip>
+
+      {/* Profile Menu */}
+      <Menu
+        anchorEl={profileAnchor}
+        open={Boolean(profileAnchor)}
+        onClose={closeProfileMenu}
+      >
+        <MenuItem onClick={closeProfileMenu}>Profile</MenuItem>
+        <MenuItem onClick={closeProfileMenu}>Settings</MenuItem>
+        <MenuItem
+          onClick={() => {
+            closeProfileMenu();
+            onLogout?.();
+          }}
+        >
+          Logout
+        </MenuItem>
+      </Menu>
+    </Toolbar>
+  </AppBar>
+
+  {/* Notifications panel */}
+  <NotificationsPanel
+    open={notifPanelOpen}
+    onClose={() => setNotifPanelOpen(false)}
+    notifications={notifications}
+    onMarkAllRead={markAllRead}
+  />
+
+  {/* Snackbar alerts */}
+  <Snackbar
+    open={snack.open}
+    autoHideDuration={4000}
+    onClose={(_, reason) => {
+      if (reason === "clickaway") return;
+      closeSnack();
+    }}
+    anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+  >
+    <Alert
+      onClose={closeSnack}
+      severity={snack.severity}
+      variant="filled"
+      sx={{ width: "100%" }}
+    >
+      {snack.message}
+    </Alert>
+  </Snackbar>
+</>
+
   );
 }
