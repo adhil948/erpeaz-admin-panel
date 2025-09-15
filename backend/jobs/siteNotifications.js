@@ -40,7 +40,7 @@ function computeTrialStatus(site) {
 
 function startSiteNotificationJob(app) {
   // Every 10 minutes; adjust as needed
-  cron.schedule('*/10 * * * *', async () => {
+  cron.schedule('* * * * *', async () => {
     try {
       const sites = await fetchUpstreamSites();
       for (const s of sites) {
