@@ -163,58 +163,54 @@ const getSiteId = (s) => s?.id ?? s?._id;
   );
 
   // Status lists
-  const recentSites = useMemo(() => {
-    const copy = [...filteredSites];
-    copy.sort(
-      (a, b) =>
-        (toDate(b.created_at) || toDate(b.updated_at) || 0) -
-        (toDate(a.created_at) || toDate(a.updated_at) || 0)
-    );
-    return copy.slice(0, 8);
-  }, [filteredSites]);
+// Status lists (remove .slice calls)
+const recentSites = useMemo(() => {
+  const copy = [...filteredSites];
+  copy.sort(
+    (a, b) =>
+      (toDate(b.created_at) || toDate(b.updated_at) || 0) -
+      (toDate(a.created_at) || toDate(a.updated_at) || 0)
+  );
+  return copy; // no slice; scroll will reveal beyond 6
+}, [filteredSites]);
 
-  const trialSites = useMemo(() => {
-    return filteredSites
-      .map((s) => {
-        const remaining = getTrialRemainingDays(s);
-        return { ...s, trialRemainingDays: remaining };
-      })
-      .filter((s) => s.trialRemainingDays != null && s.trialRemainingDays > 0)
-      .sort((a, b) => a.trialRemainingDays - b.trialRemainingDays)
-      .slice(0, 12);
-  }, [filteredSites]);
+const trialSites = useMemo(() => {
+  return filteredSites
+    .map((s) => ({ ...s, trialRemainingDays: getTrialRemainingDays(s) }))
+    .filter((s) => s.trialRemainingDays != null && s.trialRemainingDays > 0)
+    .sort((a, b) => a.trialRemainingDays - b.trialRemainingDays);
+}, [filteredSites]);
 
-  const expiredSites = useMemo(() => {
-    const now = new Date();
-    return filteredSites
-      .map((s) => {
-        const expiry = getExpiryDate(s);
-        const daysPast = expiry ? diffDays(now, expiry) : null;
-        return { ...s, expiryDate: expiry, daysPastExpiry: daysPast };
-      })
-      .filter((s) => s.expiryDate && s.daysPastExpiry != null && s.daysPastExpiry > 0)
-      .sort((a, b) => b.daysPastExpiry - a.daysPastExpiry)
-      .slice(0, 12);
-  }, [filteredSites]);
+const expiredSites = useMemo(() => {
+  const now = new Date();
+  return filteredSites
+    .map((s) => {
+      const expiry = getExpiryDate(s);
+      const daysPast = expiry ? diffDays(now, expiry) : null;
+      return { ...s, expiryDate: expiry, daysPastExpiry: daysPast };
+    })
+    .filter((s) => s.expiryDate && s.daysPastExpiry != null && s.daysPastExpiry > 0)
+    .sort((a, b) => b.daysPastExpiry - a.daysPastExpiry);
+}, [filteredSites]);
 
-  const nearRenewalSites = useMemo(() => {
-    const now = new Date();
-    return filteredSites
-      .map((s) => {
-        const expiry = getExpiryDate(s);
-        const daysToExpiry = expiry ? diffDays(expiry, now) : null;
-        return { ...s, expiryDate: expiry, daysToExpiry };
-      })
-      .filter(
-        (s) =>
-          s.expiryDate &&
-          s.daysToExpiry != null &&
-          s.daysToExpiry > 0 &&
-          s.daysToExpiry <= 60
-      )
-      .sort((a, b) => a.daysToExpiry - b.daysToExpiry)
-      .slice(0, 12);
-  }, [filteredSites]);
+const nearRenewalSites = useMemo(() => {
+  const now = new Date();
+  return filteredSites
+    .map((s) => {
+      const expiry = getExpiryDate(s);
+      const daysToExpiry = expiry ? diffDays(expiry, now) : null;
+      return { ...s, expiryDate: expiry, daysToExpiry };
+    })
+    .filter(
+      (s) =>
+        s.expiryDate &&
+        s.daysToExpiry != null &&
+        s.daysToExpiry > 0 &&
+        s.daysToExpiry <= 60
+    )
+    .sort((a, b) => a.daysToExpiry - b.daysToExpiry);
+}, [filteredSites]);
+
 
   const cardHeight = 180;
 
@@ -251,49 +247,72 @@ const getSiteId = (s) => s?.id ?? s?._id;
     </Paper>
   );
 
-const DataCard = ({ title, items, renderSecondary, emptyText = "No data" }) => (
-  <Paper elevation={6} sx={{ p: 2, borderRadius: 3, boxShadow: "0px 6px 24px rgba(40,40,40,0.10)", minHeight: 360 }}>
-    <Typography variant="h6" sx={{ mb: 1 }}>{title}</Typography>
-    {loading ? (
-      <Stack spacing={1}>
-        <Skeleton variant="rounded" height={36} />
-        <Skeleton variant="rounded" height={36} />
-        <Skeleton variant="rounded" height={36} />
-      </Stack>
-    ) : items && items.length ? (
-      <Stack spacing={0.5}>
-        {items.map((s, i) => {
-          const siteId = getSiteId(s);
-          return (
-            <ListItemButton
-              key={siteId ?? s.name ?? i}
-              onClick={() => siteId && navigate(`/sites/${siteId}`, { state: s })}
-              sx={{
-                borderRadius: 1,
-                px: 1,
-                '&:hover': { bgcolor: 'action.hover' },
-              }}
-            >
-              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ width: '100%' }}>
-                <Stack>
-                  <Typography variant="body2" fontWeight={600}>
-                    {s.name || `Site ${i + 1}`}
-                  </Typography>
-                  {renderSecondary ? renderSecondary(s) : null}
-                </Stack>
-                <Typography variant="caption" color="text.secondary">
-                  {s.plan ? String(s.plan) : "—"}
-                </Typography>
-              </Stack>
-            </ListItemButton>
-          );
-        })}
-      </Stack>
-    ) : (
-      <Typography variant="body2" color="text.secondary">{emptyText}</Typography>
-    )}
-  </Paper>
-);
+const DataCard = ({ title, items, renderSecondary, emptyText = "No data" }) => {
+  const maxRows = 6;
+  const rowHeight = 56; // approximate row height
+  return (
+    <Paper
+      elevation={6}
+      sx={{
+        p: 2,
+        borderRadius: 3,
+        boxShadow: "0px 6px 24px rgba(40,40,40,0.10)",
+        minHeight: 360,
+      }}
+    >
+      <Typography variant="h6" sx={{ mb: 1 }}>{title}</Typography>
+
+      {loading ? (
+        <Stack spacing={1}>
+          <Skeleton variant="rounded" height={36} />
+          <Skeleton variant="rounded" height={36} />
+          <Skeleton variant="rounded" height={36} />
+        </Stack>
+      ) : items && items.length ? (
+        <Box sx={{ maxHeight: maxRows * rowHeight, overflowY: "auto", pr: 0.5 }}>
+          <Stack spacing={0.5}>
+            {items.map((s, i) => {
+              const siteId = getSiteId(s);
+              return (
+                <ListItemButton
+                  key={siteId ?? s.name ?? i}
+                  onClick={() => siteId && navigate(`/sites/${siteId}`, { state: s })}
+                  sx={{
+                    borderRadius: 1,
+                    px: 1,
+                    "&:hover": { bgcolor: "action.hover" },
+                  }}
+                >
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    sx={{ width: "100%" }}
+                  >
+                    <Stack>
+                      <Typography variant="body2" fontWeight={600}>
+                        {s.name || `Site ${i + 1}`}
+                      </Typography>
+                      {renderSecondary ? renderSecondary(s) : null}
+                    </Stack>
+                    <Typography variant="caption" color="text.secondary">
+                      {s.plan ? String(s.plan) : "—"}
+                    </Typography>
+                  </Stack>
+                </ListItemButton>
+              );
+            })}
+          </Stack>
+        </Box>
+      ) : (
+        <Typography variant="body2" color="text.secondary">
+          {emptyText}
+        </Typography>
+      )}
+    </Paper>
+  );
+};
+
 
   const cards = [
     {
