@@ -4,6 +4,7 @@ const cron = require('node-cron');
 const Notification = require('../models/notification');
 const mongoose = require('mongoose');
 const { differenceInDays } = require('date-fns');
+const { sendMail } = require("../utils/mailer");
 
 // Keep a lightweight cache of seen site IDs to detect "site created"
 const SeenSite = mongoose.model(
@@ -13,6 +14,52 @@ const SeenSite = mongoose.model(
     { timestamps: true }
   )
 );
+
+
+
+// control mail
+const MAIL_EVENT_TYPES = [
+  "site_created",
+  "trial_ending",
+  "trial_ended",
+  "basic_plan_expired",
+  "plan_expired",
+];
+
+// Admin recipients
+// const ADMIN_EMAILS = ["admin@erpeaz.com", "support@erpeaz.com","adhilshahanj@gmail.com"];
+const ADMIN_EMAILS = ["adhilshahanj@gmail.com"];
+
+// async function emitNotification(payload, app) {
+//   const doc = await Notification.create(payload);
+//   app.get("notifyBroadcast")?.(doc);
+
+//   // Check if this type of notification should be emailed
+//   if (MAIL_EVENT_TYPES.includes(payload.eventType)) {
+//     try {
+//       await sendMail({
+//         to: ADMIN_EMAILS.join(","),
+//         subject: `[ERPEaz] ${payload.title}`,
+//         text: payload.message,
+//         html: `
+//           <h3>${payload.title}</h3>
+//           <p><strong>Site:</strong> ${payload.siteName || payload.siteId}</p>
+//           <p>${payload.message}</p>
+//           ${
+//             payload.meta
+//               ? `<pre>${JSON.stringify(payload.meta, null, 2)}</pre>`
+//               : ""
+//           }
+//         `,
+//       });
+//     } catch (err) {
+//       console.error("Failed to send admin email:", err.message);
+//     }
+//   }
+
+//   return doc;
+// }
+
 
 // Upstream fetching
 async function fetchUpstreamSites() {
@@ -142,6 +189,38 @@ function startSiteNotificationJob(app) {
   // Every minute; adjust as needed
   cron.schedule('* * * * *', async () => {
     try {
+
+      async function emitNotification(payload, app) {
+  const doc = await Notification.create(payload);
+  app.get("notifyBroadcast")?.(doc);
+
+  // Check if this type of notification should be emailed
+  if (MAIL_EVENT_TYPES.includes(payload.eventType)) {
+    try {
+      await sendMail({
+        to: ADMIN_EMAILS.join(","),
+        subject: `[ERPEaz] ${payload.title}`,
+        text: payload.message,
+        html: `
+          <h3>${payload.title}</h3>
+          <p><strong>Site:</strong> ${payload.siteName || payload.siteId}</p>
+          <p>${payload.message}</p>
+          ${
+            payload.meta
+              ? `<pre>${JSON.stringify(payload.meta, null, 2)}</pre>`
+              : ""
+          }
+        `,
+      });
+    } catch (err) {
+      console.error("Failed to send admin email:", err.message);
+    }
+  }
+
+  return doc;
+}
+
+
       const [sites, externalExpired] = await Promise.all([
         fetchUpstreamSites(),
         fetchExternallyExpiredPlans(), // non-basic (and optionally basic) authoritative expiries
