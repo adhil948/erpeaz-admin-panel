@@ -31,6 +31,17 @@ export default function Dashboard() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [planFilter, setPlanFilter] = useState("all");
 
+  const TRIAL_DAYS = 14; // add 14-day trial to every plan
+const RENEWAL_WINDOW_DAYS = 60; // upcoming window (tweak as desired)
+
+const addDays = (date, days) => {
+  if (!date || isNaN(date.getTime())) return null;
+  const d = new Date(date.getTime());
+  d.setDate(d.getDate() + days);
+  return d;
+};
+
+
 
   const navigate = useNavigate();
 const getSiteId = (s) => s?.id ?? s?._id;
@@ -98,12 +109,17 @@ const getSiteId = (s) => s?.id ?? s?._id;
 
   const getPlanKey = (s) => (s.plan || "").toString().toLowerCase();
 
-  const getExpiryDate = (s) => {
-    const plan = planPricing[getPlanKey(s)];
-    const months = plan?.billingMonths || 0;
-    const start = getStartDate(s);
-    return months > 0 && start ? addMonths(start, months) : null;
-  };
+// Replace old getExpiryDate with this:
+const getEffectiveExpiryDate = (s) => {
+  const plan = planPricing[getPlanKey(s)];
+  const months = plan?.billingMonths || 0; // 6 for basic, 12 for others
+  const start = getStartDate(s); // plan_started_at || subscription_start || created_at || updated_at
+  if (!start || months <= 0) return null;
+  const planEnd = addMonths(start, months);   // month carry handled by setMonth
+  const withTrial = addDays(planEnd, TRIAL_DAYS); // +14 day trial
+  return withTrial;
+};
+
 
   const getTrialRemainingDays = (s) => {
     const created = toDate(s.created_at) || toDate(s.updated_at);
@@ -185,7 +201,7 @@ const expiredSites = useMemo(() => {
   const now = new Date();
   return filteredSites
     .map((s) => {
-      const expiry = getExpiryDate(s);
+      const expiry = getEffectiveExpiryDate(s);
       const daysPast = expiry ? diffDays(now, expiry) : null;
       return { ...s, expiryDate: expiry, daysPastExpiry: daysPast };
     })
@@ -193,11 +209,12 @@ const expiredSites = useMemo(() => {
     .sort((a, b) => b.daysPastExpiry - a.daysPastExpiry);
 }, [filteredSites]);
 
+
 const nearRenewalSites = useMemo(() => {
   const now = new Date();
   return filteredSites
     .map((s) => {
-      const expiry = getExpiryDate(s);
+      const expiry = getEffectiveExpiryDate(s);
       const daysToExpiry = expiry ? diffDays(expiry, now) : null;
       return { ...s, expiryDate: expiry, daysToExpiry };
     })
@@ -206,10 +223,11 @@ const nearRenewalSites = useMemo(() => {
         s.expiryDate &&
         s.daysToExpiry != null &&
         s.daysToExpiry > 0 &&
-        s.daysToExpiry <= 60
+        s.daysToExpiry <= RENEWAL_WINDOW_DAYS
     )
     .sort((a, b) => a.daysToExpiry - b.daysToExpiry);
 }, [filteredSites]);
+
 
 
   const cardHeight = 180;
@@ -464,11 +482,13 @@ const DataCard = ({ title, items, renderSecondary, emptyText = "No data" }) => {
           <DataCard
             title="Upcoming Renewals "
             items={nearRenewalSites}
-            renderSecondary={(s) => (
-              <Typography variant="caption" color="primary.main">
-                Renews in {s.daysToExpiry} days
-              </Typography>
-            )}
+renderSecondary={(s) => (
+  <Typography variant="caption" color="primary.main">
+    Renews in {s.daysToExpiry} days
+  </Typography>
+  
+)}
+
             emptyText="No renewals within 60 days"
           />
         </Grid>
