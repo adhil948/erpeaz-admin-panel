@@ -255,8 +255,8 @@ export default function AppHeader({
         open={Boolean(profileAnchor)}
         onClose={closeProfileMenu}
       >
-        <MenuItem onClick={closeProfileMenu}>Profile</MenuItem>
-        <MenuItem onClick={closeProfileMenu}>Settings</MenuItem>
+        {/* <MenuItem onClick={closeProfileMenu}>Profile</MenuItem>
+        <MenuItem onClick={closeProfileMenu}>Settings</MenuItem> */}
         <MenuItem
           onClick={() => {
             closeProfileMenu();
