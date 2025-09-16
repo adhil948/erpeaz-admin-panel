@@ -2,12 +2,12 @@
 import axios from 'axios';
 
 // export const listExpenses = async (siteId) => {
-//   const { data } = await axios.get(`http://localhost:4000http://localhost:4000/api/sites/${siteId}/expenses`);
+//   const { data } = await axios.get(`http://localhost:4000${process.env.REACT_APP_API_URL}/sites/${siteId}/expenses`);
 //   return data;
 // };
 
 // export const createExpense = async (siteId, payload) => {
-//   const { data } = await axios.post(`http://localhost:4000http://localhost:4000/api/sites/${siteId}/expenses`, payload);
+//   const { data } = await axios.post(`http://localhost:4000${process.env.REACT_APP_API_URL}/sites/${siteId}/expenses`, payload);
 //   return data;
 // };
 
@@ -22,22 +22,22 @@ import axios from 'axios';
 // };
 
 // export const getExpenseSummary = async (siteId) => {
-//   const { data } = await axios.get(`http://localhost:4000http://localhost:4000/api/sites/${siteId}/expenses/summary`);
+//   const { data } = await axios.get(`http://localhost:4000${process.env.REACT_APP_API_URL}/sites/${siteId}/expenses/summary`);
 //   return data; // { spent: {total,count}, planned: {...}, due: {...} }
 // };
 
 
 export const listExpenses = async (siteId) =>
-  (await axios.get(`http://localhost:4000/api/sites/${siteId}/expenses`)).data;
+  (await axios.get(`${process.env.REACT_APP_API_URL}/sites/${siteId}/expenses`)).data;
 
 export const createExpense = async (siteId, payload) =>
-  (await axios.post(`http://localhost:4000/api/sites/${siteId}/expenses`, payload)).data;
+  (await axios.post(`${process.env.REACT_APP_API_URL}/sites/${siteId}/expenses`, payload)).data;
 
 export const updateExpense = async (siteId, expenseId, payload) =>
-  (await axios.put(`http://localhost:4000/api/sites/${siteId}/expenses/${expenseId}`, payload)).data;
+  (await axios.put(`${process.env.REACT_APP_API_URL}/sites/${siteId}/expenses/${expenseId}`, payload)).data;
 
 export const deleteExpense = async (siteId, expenseId) =>
-  (await axios.delete(`http://localhost:4000/api/sites/${siteId}/expenses/${expenseId}`)).data;
+  (await axios.delete(`${process.env.REACT_APP_API_URL}/sites/${siteId}/expenses/${expenseId}`)).data;
 
 export const getExpenseSummary = async (siteId) =>
-  (await axios.get(`http://localhost:4000/api/sites/${siteId}/expenses/summary`)).data;
+  (await axios.get(`${process.env.REACT_APP_API_URL}/sites/${siteId}/expenses/summary`)).data;

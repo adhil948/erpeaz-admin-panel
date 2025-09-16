@@ -16,8 +16,8 @@ export default function RevenueSection({ siteId }) {
       setLoading(true);
       setError(null);
       const [s, t] = await Promise.all([
-        fetch(`http://localhost:4000/api/sites/${siteId}/revenue/summary`).then(r => r.json()),
-        fetch(`http://localhost:4000/api/sites/${siteId}/revenue/transactions?limit=${limit}`).then(r => r.json()),
+        fetch(`${process.env.REACT_APP_API_URL}/sites/${siteId}/revenue/summary`).then(r => r.json()),
+        fetch(`${process.env.REACT_APP_API_URL}/sites/${siteId}/revenue/transactions?limit=${limit}`).then(r => r.json()),
       ]);
       setSummary(s);
       setTxns(t?.items || []);

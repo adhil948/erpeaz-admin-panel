@@ -26,7 +26,7 @@ export default function RevenueFYOverview() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`http://localhost:4000/api/revenue/fy-overview?fyStart=${fyStart}`, { cache: 'no-store' });
+      const res = await fetch(`${process.env.REACT_APP_API_URL}/revenue/fy-overview?fyStart=${fyStart}`, { cache: 'no-store' });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed');
       setData(json);
@@ -43,7 +43,7 @@ export default function RevenueFYOverview() {
     if (!siteId) return;
     setSiteDetails(prev => ({ ...prev, [siteId]: { ...(prev[siteId] || {}), loading: true, error: null } }));
     try {
-      const res = await fetch(`http://localhost:4000/api/sites/${encodeURIComponent(siteId)}/revenue/fy-summary?fyStart=${fyStart}`, { cache: 'no-store' });
+      const res = await fetch(`${process.env.REACT_APP_API_URL}/sites/${encodeURIComponent(siteId)}/revenue/fy-summary?fyStart=${fyStart}`, { cache: 'no-store' });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed');
       setSiteDetails(prev => ({ ...prev, [siteId]: { loading: false, error: null, summary: json } }));
