@@ -6,6 +6,8 @@ const sitesRoutes = require('./routes/sites');
 const notificationsRouter = require('./routes/notifications');
 const revenueRoutes = require('./routes/revenue')
 const { startSiteNotificationJob } = require('./jobs/siteNotifications');
+const subscriptionRouter = require('./routes/subscription');
+
 // server.js (continued)
 const { router: sseRouter, attachBroadcast } = require('./routes/notifications-sse');
 
@@ -31,6 +33,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/sites', sitesRoutes);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/notifications', sseRouter);
+app.use('/api/sites/:siteId/subscription', subscriptionRouter); 
 app.use('/api', revenueRoutes);
 
 

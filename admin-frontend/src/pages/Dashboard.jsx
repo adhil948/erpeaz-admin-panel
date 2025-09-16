@@ -1,3 +1,4 @@
+// src/pages/Dashboard.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Typography,
@@ -17,66 +18,47 @@ import PeopleIcon from "@mui/icons-material/People";
 import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 import StorageIcon from "@mui/icons-material/Storage";
 import BarChartIcon from "@mui/icons-material/BarChart";
-import { ListItemButton } from '@mui/material';
+import { ListItemButton } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-// Removed charts & timeline imports
+
+// APIs
 import { fetchSites } from "../api/sites";
+import { fetchSubscription } from "../api/subscription"; // GET /api/sites/:id/subscription
 
 export default function Dashboard() {
   const theme = useTheme();
 
+  // Core state
   const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [planFilter, setPlanFilter] = useState("all");
 
-  const TRIAL_DAYS = 14; // add 14-day trial to every plan
-const RENEWAL_WINDOW_DAYS = 60; // upcoming window (tweak as desired)
-
-const addDays = (date, days) => {
-  if (!date || isNaN(date.getTime())) return null;
-  const d = new Date(date.getTime());
-  d.setDate(d.getDate() + days);
-  return d;
-};
-
-
+  // Subscriptions (siteId -> subscription doc)
+  const [subsBySite, setSubsBySite] = useState(new Map());
+  const [subsError, setSubsError] = useState(null);
 
   const navigate = useNavigate();
-const getSiteId = (s) => s?.id ?? s?._id;
 
-  const load = async () => {
-    try {
-      setLoading(true);
-      setErr(null);
-      const data = await fetchSites();
-      setSites(Array.isArray(data) ? data : []);
-      setLastUpdated(new Date());
-    } catch (e) {
-      setErr(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      if (!active) return;
-      await load();
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
+  // Constants
+  const TRIAL_DAYS = 14;
+  const RENEWAL_WINDOW_DAYS = 60;
+  const msPerDay = 24 * 60 * 60 * 1000;
 
   // Helpers
-  const msPerDay = 24 * 60 * 60 * 1000;
+  const getSiteId = (s) => s?.id ?? s?._id;
 
   const toDate = (v) => {
     const d = v ? new Date(v) : null;
     return d && !isNaN(d.getTime()) ? d : null;
+  };
+
+  const addDays = (date, days) => {
+    if (!date || isNaN(date.getTime())) return null;
+    const d = new Date(date.getTime());
+    d.setDate(d.getDate() + days);
+    return d;
   };
 
   const addMonths = (date, months) => {
@@ -109,17 +91,21 @@ const getSiteId = (s) => s?.id ?? s?._id;
 
   const getPlanKey = (s) => (s.plan || "").toString().toLowerCase();
 
-// Replace old getExpiryDate with this:
-const getEffectiveExpiryDate = (s) => {
-  const plan = planPricing[getPlanKey(s)];
-  const months = plan?.billingMonths || 0; // 6 for basic, 12 for others
-  const start = getStartDate(s); // plan_started_at || subscription_start || created_at || updated_at
-  if (!start || months <= 0) return null;
-  const planEnd = addMonths(start, months);   // month carry handled by setMonth
-  const withTrial = addDays(planEnd, TRIAL_DAYS); // +14 day trial
-  return withTrial;
-};
+  // Prefer server expiry_at (from subscription), else compute start + trial + plan months
+  const getEffectiveExpiryDate = (s) => {
+    const siteId = getSiteId(s);
+    const sub = siteId ? subsBySite.get(siteId) : null;
+    const explicitEnd = sub?.expiry_at ? toDate(sub.expiry_at) : null;
+    if (explicitEnd) return explicitEnd;
 
+    const plan = planPricing[getPlanKey(s)];
+    const months = plan?.billingMonths || 0; // basic:6, others:12
+    const start = getStartDate(s);
+    if (!start || months <= 0) return null;
+
+    const trialEnds = addDays(start, TRIAL_DAYS);
+    return addMonths(trialEnds ?? start, months);
+  };
 
   const getTrialRemainingDays = (s) => {
     const created = toDate(s.created_at) || toDate(s.updated_at);
@@ -131,6 +117,58 @@ const getEffectiveExpiryDate = (s) => {
     const remaining = totalTrial - daysSince;
     return remaining;
   };
+
+  // Load sites and then their subscriptions
+  const load = async () => {
+    try {
+      setLoading(true);
+      setSubsError(null);
+      setErr(null);
+
+      const data = await fetchSites();
+      const list = Array.isArray(data) ? data : [];
+      setSites(list);
+
+      // Fetch subscriptions in parallel (best-effort, do not block on failures)
+      const entries = await Promise.allSettled(
+        list.map(async (s) => {
+          const sid = getSiteId(s);
+          if (!sid) return { sid, sub: null };
+          try {
+            const sub = await fetchSubscription(sid); // returns null on 404
+            return { sid, sub };
+          } catch {
+            return { sid, sub: null }; // ignore individual fetch failures
+          }
+        })
+      );
+
+      const map = new Map();
+      for (const r of entries) {
+        if (r.status === "fulfilled" && r.value?.sid) {
+          if (r.value.sub) map.set(r.value.sid, r.value.sub);
+        }
+      }
+      setSubsBySite(map);
+      setLastUpdated(new Date());
+    } catch (e) {
+      setErr(e);
+      setSubsError("Failed to load subscriptions");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (!active) return;
+      await load();
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Filtered sites (quick plan filter)
   const filteredSites = useMemo(() => {
@@ -179,57 +217,54 @@ const getEffectiveExpiryDate = (s) => {
   );
 
   // Status lists
-// Status lists (remove .slice calls)
-const recentSites = useMemo(() => {
-  const copy = [...filteredSites];
-  copy.sort(
-    (a, b) =>
-      (toDate(b.created_at) || toDate(b.updated_at) || 0) -
-      (toDate(a.created_at) || toDate(a.updated_at) || 0)
-  );
-  return copy; // no slice; scroll will reveal beyond 6
-}, [filteredSites]);
+  const recentSites = useMemo(() => {
+    const copy = [...filteredSites];
+    copy.sort(
+      (a, b) =>
+        (toDate(b.created_at) || toDate(b.updated_at) || 0) -
+        (toDate(a.created_at) || toDate(a.updated_at) || 0)
+    );
+    return copy;
+  }, [filteredSites]);
 
-const trialSites = useMemo(() => {
-  return filteredSites
-    .map((s) => ({ ...s, trialRemainingDays: getTrialRemainingDays(s) }))
-    .filter((s) => s.trialRemainingDays != null && s.trialRemainingDays > 0)
-    .sort((a, b) => a.trialRemainingDays - b.trialRemainingDays);
-}, [filteredSites]);
+  const trialSites = useMemo(() => {
+    return filteredSites
+      .map((s) => ({ ...s, trialRemainingDays: getTrialRemainingDays(s) }))
+      .filter((s) => s.trialRemainingDays != null && s.trialRemainingDays > 0)
+      .sort((a, b) => a.trialRemainingDays - b.trialRemainingDays);
+  }, [filteredSites]);
 
-const expiredSites = useMemo(() => {
-  const now = new Date();
-  return filteredSites
-    .map((s) => {
-      const expiry = getEffectiveExpiryDate(s);
-      const daysPast = expiry ? diffDays(now, expiry) : null;
-      return { ...s, expiryDate: expiry, daysPastExpiry: daysPast };
-    })
-    .filter((s) => s.expiryDate && s.daysPastExpiry != null && s.daysPastExpiry > 0)
-    .sort((a, b) => b.daysPastExpiry - a.daysPastExpiry);
-}, [filteredSites]);
+  const expiredSites = useMemo(() => {
+    const now = new Date();
+    return filteredSites
+      .map((s) => {
+        const expiry = getEffectiveExpiryDate(s);
+        const daysPast = expiry ? diffDays(now, expiry) : null;
+        return { ...s, expiryDate: expiry, daysPastExpiry: daysPast };
+      })
+      .filter((s) => s.expiryDate && s.daysPastExpiry != null && s.daysPastExpiry > 0)
+      .sort((a, b) => b.daysPastExpiry - a.daysPastExpiry);
+  }, [filteredSites, subsBySite]);
 
+  const nearRenewalSites = useMemo(() => {
+    const now = new Date();
+    return filteredSites
+      .map((s) => {
+        const expiry = getEffectiveExpiryDate(s);
+        const daysToExpiry = expiry ? diffDays(expiry, now) : null;
+        return { ...s, expiryDate: expiry, daysToExpiry };
+      })
+      .filter(
+        (s) =>
+          s.expiryDate &&
+          s.daysToExpiry != null &&
+          s.daysToExpiry > 0 &&
+          s.daysToExpiry <= RENEWAL_WINDOW_DAYS
+      )
+      .sort((a, b) => a.daysToExpiry - b.daysToExpiry);
+  }, [filteredSites, subsBySite]);
 
-const nearRenewalSites = useMemo(() => {
-  const now = new Date();
-  return filteredSites
-    .map((s) => {
-      const expiry = getEffectiveExpiryDate(s);
-      const daysToExpiry = expiry ? diffDays(expiry, now) : null;
-      return { ...s, expiryDate: expiry, daysToExpiry };
-    })
-    .filter(
-      (s) =>
-        s.expiryDate &&
-        s.daysToExpiry != null &&
-        s.daysToExpiry > 0 &&
-        s.daysToExpiry <= RENEWAL_WINDOW_DAYS
-    )
-    .sort((a, b) => a.daysToExpiry - b.daysToExpiry);
-}, [filteredSites]);
-
-
-
+  // Cards
   const cardHeight = 180;
 
   const StatCard = ({ icon, label, value, extra }) => (
@@ -265,72 +300,73 @@ const nearRenewalSites = useMemo(() => {
     </Paper>
   );
 
-const DataCard = ({ title, items, renderSecondary, emptyText = "No data" }) => {
-  const maxRows = 6;
-  const rowHeight = 56; // approximate row height
-  return (
-    <Paper
-      elevation={6}
-      sx={{
-        p: 2,
-        borderRadius: 3,
-        boxShadow: "0px 6px 24px rgba(40,40,40,0.10)",
-        minHeight: 360,
-      }}
-    >
-      <Typography variant="h6" sx={{ mb: 1 }}>{title}</Typography>
-
-      {loading ? (
-        <Stack spacing={1}>
-          <Skeleton variant="rounded" height={36} />
-          <Skeleton variant="rounded" height={36} />
-          <Skeleton variant="rounded" height={36} />
-        </Stack>
-      ) : items && items.length ? (
-        <Box sx={{ maxHeight: maxRows * rowHeight, overflowY: "auto", pr: 0.5 }}>
-          <Stack spacing={0.5}>
-            {items.map((s, i) => {
-              const siteId = getSiteId(s);
-              return (
-                <ListItemButton
-                  key={siteId ?? s.name ?? i}
-                  onClick={() => siteId && navigate(`/sites/${siteId}`, { state: s })}
-                  sx={{
-                    borderRadius: 1,
-                    px: 1,
-                    "&:hover": { bgcolor: "action.hover" },
-                  }}
-                >
-                  <Stack
-                    direction="row"
-                    alignItems="center"
-                    justifyContent="space-between"
-                    sx={{ width: "100%" }}
-                  >
-                    <Stack>
-                      <Typography variant="body2" fontWeight={600}>
-                        {s.name || `Site ${i + 1}`}
-                      </Typography>
-                      {renderSecondary ? renderSecondary(s) : null}
-                    </Stack>
-                    <Typography variant="caption" color="text.secondary">
-                      {s.plan ? String(s.plan) : "—"}
-                    </Typography>
-                  </Stack>
-                </ListItemButton>
-              );
-            })}
-          </Stack>
-        </Box>
-      ) : (
-        <Typography variant="body2" color="text.secondary">
-          {emptyText}
+  const DataCard = ({ title, items, renderSecondary, emptyText = "No data" }) => {
+    const maxRows = 6;
+    const rowHeight = 56;
+    return (
+      <Paper
+        elevation={6}
+        sx={{
+          p: 2,
+          borderRadius: 3,
+          boxShadow: "0px 6px 24px rgba(40,40,40,0.10)",
+          minHeight: 360,
+        }}
+      >
+        <Typography variant="h6" sx={{ mb: 1 }}>
+          {title}
         </Typography>
-      )}
-    </Paper>
-  );
-};
 
+        {loading ? (
+          <Stack spacing={1}>
+            <Skeleton variant="rounded" height={36} />
+            <Skeleton variant="rounded" height={36} />
+            <Skeleton variant="rounded" height={36} />
+          </Stack>
+        ) : items && items.length ? (
+          <Box sx={{ maxHeight: maxRows * rowHeight, overflowY: "auto", pr: 0.5 }}>
+            <Stack spacing={0.5}>
+              {items.map((s, i) => {
+                const siteId = getSiteId(s);
+                return (
+                  <ListItemButton
+                    key={siteId ?? s.name ?? i}
+                    onClick={() => siteId && navigate(`/sites/${siteId}`, { state: s })}
+                    sx={{
+                      borderRadius: 1,
+                      px: 1,
+                      "&:hover": { bgcolor: "action.hover" },
+                    }}
+                  >
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      sx={{ width: "100%" }}
+                    >
+                      <Stack>
+                        <Typography variant="body2" fontWeight={600}>
+                          {s.name || `Site ${i + 1}`}
+                        </Typography>
+                        {renderSecondary ? renderSecondary(s) : null}
+                      </Stack>
+                      <Typography variant="caption" color="text.secondary">
+                        {s.plan ? String(s.plan) : "—"}
+                      </Typography>
+                    </Stack>
+                  </ListItemButton>
+                );
+              })}
+            </Stack>
+          </Box>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            {emptyText}
+          </Typography>
+        )}
+      </Paper>
+    );
+  };
 
   const cards = [
     {
@@ -349,8 +385,8 @@ const DataCard = ({ title, items, renderSecondary, emptyText = "No data" }) => {
       value: activePlans,
       extra: (
         <Typography variant="subtitle2" color="text.secondary" mt={1}>
-          Basic: {plansCount.basic || 0} • Pro: {plansCount.professional || 0} •
-          Premium: {plansCount.premium || 0} • Ult: {plansCount.ultimate || 0}
+          Basic: {plansCount.basic || 0} • Pro: {plansCount.professional || 0} • Premium:{" "}
+          {plansCount.premium || 0} • Ult: {plansCount.ultimate || 0}
         </Typography>
       ),
     },
@@ -373,12 +409,7 @@ const DataCard = ({ title, items, renderSecondary, emptyText = "No data" }) => {
 
   return (
     <Box sx={{ width: "100%" }}>
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        sx={{ mb: 1 }}
-      >
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
         <Typography variant="h4" fontWeight="bold">
           ERPEaz Admin Dashboard
         </Typography>
@@ -389,17 +420,15 @@ const DataCard = ({ title, items, renderSecondary, emptyText = "No data" }) => {
             color={planFilter === "all" ? "primary" : "default"}
             onClick={() => setPlanFilter("all")}
           />
-          {["basic", "professional", "premium", "ultimate", "enterprise"].map(
-            (p) => (
-              <Chip
-                key={p}
-                label={p}
-                size="small"
-                color={planFilter === p ? "primary" : "default"}
-                onClick={() => setPlanFilter(p)}
-              />
-            )
-          )}
+          {["basic", "professional", "premium", "ultimate", "enterprise"].map((p) => (
+            <Chip
+              key={p}
+              label={p}
+              size="small"
+              color={planFilter === p ? "primary" : "default"}
+              onClick={() => setPlanFilter(p)}
+            />
+          ))}
           <IconButton aria-label="Refresh" onClick={load}>
             <RefreshIcon />
           </IconButton>
@@ -407,14 +436,17 @@ const DataCard = ({ title, items, renderSecondary, emptyText = "No data" }) => {
       </Stack>
 
       <Typography variant="body2" sx={{ mb: 2 }} color="text.secondary">
-        {lastUpdated
-          ? `Last updated: ${lastUpdated.toLocaleString()}`
-          : "Loading…"}
+        {lastUpdated ? `Last updated: ${lastUpdated.toLocaleString()}` : "Loading…"}
       </Typography>
 
       {err && (
         <Alert severity="error" sx={{ mb: 2 }}>
           Failed to load data. Please retry or check your network.
+        </Alert>
+      )}
+      {subsError && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Some subscriptions could not be loaded; showing computed expiries where missing.
         </Alert>
       )}
 
@@ -427,14 +459,14 @@ const DataCard = ({ title, items, renderSecondary, emptyText = "No data" }) => {
         ))}
       </Grid>
 
-{/* Divider with padding */}
-<Box sx={{ my: 4 }}>
-  <Divider />
-</Box>
+      {/* Divider with padding */}
+      <Box sx={{ my: 4 }}>
+        <Divider />
+      </Box>
 
-      {/* New data cards */}
-      <Grid container spacing={3}  >
-        <Grid item xs={12} md={6} lg={6} sx={{minWidth:420}} >
+      {/* Data cards */}
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={6} lg={6} sx={{ minWidth: 420 }}>
           <DataCard
             title="Recently Created"
             items={recentSites}
@@ -442,9 +474,7 @@ const DataCard = ({ title, items, renderSecondary, emptyText = "No data" }) => {
               const created = toDate(s.created_at) || toDate(s.updated_at);
               return (
                 <Typography variant="caption" color="text.secondary">
-                  {created
-                    ? `Created: ${created.toLocaleDateString()}`
-                    : "Created: —"}
+                  {created ? `Created: ${created.toLocaleDateString()}` : "Created: —"}
                 </Typography>
               );
             }}
@@ -452,7 +482,7 @@ const DataCard = ({ title, items, renderSecondary, emptyText = "No data" }) => {
           />
         </Grid>
 
-        <Grid item xs={12} md={6} lg={6} sx={{minWidth:420}}>
+        <Grid item xs={12} md={6} lg={6} sx={{ minWidth: 420 }}>
           <DataCard
             title="In Trial"
             items={trialSites}
@@ -465,7 +495,7 @@ const DataCard = ({ title, items, renderSecondary, emptyText = "No data" }) => {
           />
         </Grid>
 
-        <Grid item xs={12} md={6} lg={6} sx={{minWidth:420}}>
+        <Grid item xs={12} md={6} lg={6} sx={{ minWidth: 420 }}>
           <DataCard
             title="Expired Plans"
             items={expiredSites}
@@ -478,18 +508,16 @@ const DataCard = ({ title, items, renderSecondary, emptyText = "No data" }) => {
           />
         </Grid>
 
-        <Grid item xs={12} md={6} lg={6} sx={{minWidth:420}}>
+        <Grid item xs={12} md={6} lg={6} sx={{ minWidth: 420 }}>
           <DataCard
             title="Upcoming Renewals "
             items={nearRenewalSites}
-renderSecondary={(s) => (
-  <Typography variant="caption" color="primary.main">
-    Renews in {s.daysToExpiry} days
-  </Typography>
-  
-)}
-
-            emptyText="No renewals within 60 days"
+            renderSecondary={(s) => (
+              <Typography variant="caption" color="primary.main">
+                Renews in {s.daysToExpiry} days
+              </Typography>
+            )}
+            emptyText={`No renewals within ${RENEWAL_WINDOW_DAYS} days`}
           />
         </Grid>
       </Grid>
