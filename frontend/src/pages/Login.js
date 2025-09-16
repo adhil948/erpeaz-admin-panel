@@ -37,7 +37,7 @@ const Login = ({ onLoginSuccess }) => {
     setLoginError('');
 
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}}/auth/login`, { email, password });
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/login`, { email, password });
       // Pass token or user data up for app context handling
       onLoginSuccess(response.data.token);
     } catch (error) {

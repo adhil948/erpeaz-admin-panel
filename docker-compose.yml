@@ -1,0 +1,20 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - ./backend/.env
+    restart: unless-stopped
+    expose:
+      - "5000:5000"
+
+  frontend:
+    build:
+      context: ./frontend
+    env_file:
+      - ./frontend/.env
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    depends_on:
+      - backend
