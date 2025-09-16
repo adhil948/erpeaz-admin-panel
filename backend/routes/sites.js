@@ -1,11 +1,12 @@
 // routes/sites.js
+require('dotenv').config();
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const expensesRouter = require('./expenses'); // NEW: child router for expenses
 
 // Load config (base URL, token) from env or config file
-const EXTERNAL_API_BASE_URL = process.env.EXTERNAL_API_BASE_URL || 'http://api.erpeaz.org/api';
+const EXTERNAL_API_BASE_URL = process.env.EXTERNAL_API_BASE_URL ;
 const EXTERNAL_API_SITES_ENDPOINT = '/site-details';
 
 // List all sites (proxy)
