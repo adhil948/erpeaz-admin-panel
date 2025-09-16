@@ -64,7 +64,7 @@ const Login = ({ onLoginSuccess }) => {
         sx={{ maxWidth: 400, p: 4, width: '100%', borderRadius: 2 }}
       >
         <Typography variant="h5" align="center" mb={3}>
-          Admin Panel Login
+          ERPEaz Admin Panel Login
         </Typography>
         <form noValidate onSubmit={handleSubmit}>
           <TextField
