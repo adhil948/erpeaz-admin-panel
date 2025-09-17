@@ -130,26 +130,26 @@ export default function Dashboard() {
       setSites(list);
 
       // Fetch subscriptions in parallel (best-effort, do not block on failures)
-      const entries = await Promise.allSettled(
-        list.map(async (s) => {
-          const sid = getSiteId(s);
-          if (!sid) return { sid, sub: null };
-          try {
-            const sub = await fetchSubscription(sid); // returns null on 404
-            return { sid, sub };
-          } catch {
-            return { sid, sub: null }; // ignore individual fetch failures
-          }
-        })
-      );
+// In Dashboard.jsx load()
+const entries = await Promise.allSettled(
+  list.map(async (s) => {
+    try {
+      const sub = await ensureSubscription(s); // creates if missing
+      return { sid: s?.id ?? s?._id, sub };
+    } catch {
+      return { sid: s?.id ?? s?._id, sub: null }; // keep resilient
+    }
+  })
+);
 
-      const map = new Map();
-      for (const r of entries) {
-        if (r.status === "fulfilled" && r.value?.sid) {
-          if (r.value.sub) map.set(r.value.sid, r.value.sub);
-        }
-      }
-      setSubsBySite(map);
+const map = new Map();
+for (const r of entries) {
+  if (r.status === 'fulfilled' && r.value?.sid && r.value.sub) {
+    map.set(r.value.sid, r.value.sub);
+  }
+}
+setSubsBySite(map);
+
       setLastUpdated(new Date());
     } catch (e) {
       setErr(e);
@@ -513,8 +513,8 @@ export default function Dashboard() {
             title="Upcoming Renewals "
             items={nearRenewalSites}
             renderSecondary={(s) => (
-              <Typography variant="caption" color="primary.main">
-                Renews in {s.daysToExpiry} days
+              <Typography variant="caption" color="warning.main">
+                Renewal in {s.daysToExpiry} days
               </Typography>
             )}
             emptyText={`No renewals within ${RENEWAL_WINDOW_DAYS} days`}
