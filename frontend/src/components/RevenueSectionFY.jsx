@@ -199,64 +199,7 @@ export default function RevenueFYOverview() {
 
 
 
-      {/* <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-        {loading ? (
-          <Stack spacing={1}><Skeleton height={40} /><Skeleton height={40} /><Skeleton height={40} /></Stack>
-        ) : error ? (
-          <Typography color="error">{error}</Typography>
-        ) : (data?.sites?.length ? (
-          <Stack>
-            {data.sites.map((row) => {
-                console.log(siteDetails);
-              const s = siteDetails[row.siteId];
-              return (
-                <Accordion
-                  key={row.siteId}
-                  expanded={expanded === row.siteId}
-                  onChange={handleExpand(row.siteId)}
-                  disableGutters
-                >
-                  <AccordionSummary expandIcon={<IconButton size="small"><ExpandMoreIcon /></IconButton>}>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ width: '100%' }}>
-                      <Typography variant="body1" sx={{ maxWidth: '60%', pr: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {row.siteId}
-                      </Typography>
-                      <Typography variant="body1" fontWeight="medium">{INR.format(row.total)}</Typography>
-                    </Stack>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    {s?.loading ? (
-                      <Stack spacing={1}><Skeleton height={20} /><Skeleton height={20} /><Skeleton height={20} /></Stack>
-                    ) : s?.error ? (
-                      <Typography color="error">{s.error}</Typography>
-                    ) : s?.summary ? (
-                      <Box>
-                        <Typography variant="subtitle2" sx={{ mb: 1 }}>Monthly breakdown</Typography>
-                        <Divider sx={{ mb: 1 }} />
-                        <Stack spacing={0.5}>
-                          {(s.summary.monthly || []).map((m) => (
-                            <Stack key={`${m.year}-${m.month}`} direction="row" justifyContent="space-between">
-                              <Typography variant="body2">{`${m.year}-${String(m.month).padStart(2, '0')}`}</Typography>
-                              <Typography variant="body2">{INR.format(m.total)}</Typography>
-                            </Stack>
-                          ))}
-                          {(!s.summary.monthly || s.summary.monthly.length === 0) && (
-                            <Typography variant="body2" color="text.secondary">No payments in this FY for this site</Typography>
-                          )}
-                        </Stack>
-                      </Box>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">Expand to load details…</Typography>
-                    )}
-                  </AccordionDetails>
-                </Accordion>
-              );
-            })}
-          </Stack>
-        ) : (
-          <Typography variant="body2" color="text.secondary">No revenue found</Typography>
-        ))}
-      </Paper> */}
+
     </Box>
   );
 }

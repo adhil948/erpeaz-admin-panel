@@ -28,7 +28,10 @@ attachBroadcast(app); // this should be after the default and not overwritten la
 
 connectDB();
 
-app.use(cors());
+app.use(cors({
+  origin: 'https://admin.webeaz.in', // your frontend URL
+  credentials: true, // if you need cookies
+}));
 app.use(express.json());
 
 // Use the auth routes under /api/auth path
