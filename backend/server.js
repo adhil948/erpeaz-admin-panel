@@ -7,6 +7,9 @@ const notificationsRouter = require('./routes/notifications');
 const revenueRoutes = require('./routes/revenue')
 const { startSiteNotificationJob } = require('./jobs/siteNotifications');
 const subscriptionRouter = require('./routes/subscription');
+const { startSiteSyncJob } = require("./jobs/syncsites");
+
+
 
 // server.js (continued)
 const { router: sseRouter, attachBroadcast } = require('./routes/notifications-sse');
@@ -41,6 +44,7 @@ app.set('notifyBroadcast', null);
 
 // Start background job
 startSiteNotificationJob(app);
+startSiteSyncJob();
 
 // Optional: test root endpoint
 app.get('/', (req, res) => {

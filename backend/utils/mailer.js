@@ -17,7 +17,7 @@ const transporter = nodemailer.createTransport({
 async function sendMail({ to, subject, text, html }) {
   try {
     const info = await transporter.sendMail({
-      from: '"ERPEaz Notifications" <noreply@erpeaz.com>', // alias as FROM
+      from: '"ERPEaz admin alerts" <noreply@erpeaz.com>', // alias as FROM
       to, // can be admin list
       subject,
       text,

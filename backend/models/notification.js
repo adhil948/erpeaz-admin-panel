@@ -2,7 +2,12 @@
 const mongoose = require('mongoose');
 const NotificationSchema = new mongoose.Schema(
   {
-    eventType: { type: String, enum: ['site_created', 'trial_ending', 'trial_ended'], required: true },
+    eventType: { type: String, enum: [    "site_created",
+    "trial_ending",
+    "trial_ended",
+    "basic_plan_ending",
+    "basic_plan_expired",
+    "plan_expired",], required: true },
     siteId: { type: String, index: true },
     siteName: String,
     severity: { type: String, enum: ['success', 'info', 'warning', 'error'], required: true },
