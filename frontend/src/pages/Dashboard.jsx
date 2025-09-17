@@ -23,7 +23,10 @@ import { useNavigate } from "react-router-dom";
 
 // APIs
 import { fetchSites } from "../api/sites";
-import { fetchSubscription } from "../api/subscription"; // GET /api/sites/:id/subscription
+import { fetchSubscription } from "../api/subscription";
+
+// Shared helpers
+import { computeExpiry, planMonths } from "../utils/subscription";
 
 export default function Dashboard() {
   const theme = useTheme();
@@ -42,44 +45,11 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   // Constants
-  const TRIAL_DAYS = 14;
   const RENEWAL_WINDOW_DAYS = 60;
-  const msPerDay = 24 * 60 * 60 * 1000;
 
   // Helpers
   const getSiteId = (s) => s?.id ?? s?._id;
-
-  const toDate = (v) => {
-    const d = v ? new Date(v) : null;
-    return d && !isNaN(d.getTime()) ? d : null;
-  };
-
-  const addDays = (date, days) => {
-    if (!date || isNaN(date.getTime())) return null;
-    const d = new Date(date.getTime());
-    d.setDate(d.getDate() + days);
-    return d;
-  };
-
-  const addMonths = (date, months) => {
-    if (!date || isNaN(date.getTime())) return null;
-    const d = new Date(date.getTime());
-    d.setMonth(d.getMonth() + months);
-    return d;
-  };
-
-  const diffDays = (a, b) => {
-    if (!a || !b) return null;
-    const end = new Date(a.getFullYear(), a.getMonth(), a.getDate());
-    const start = new Date(b.getFullYear(), b.getMonth(), b.getDate());
-    return Math.round((end.getTime() - start.getTime()) / msPerDay);
-  };
-
-  const getStartDate = (s) =>
-    toDate(s.plan_started_at) ||
-    toDate(s.subscription_start) ||
-    toDate(s.created_at) ||
-    toDate(s.updated_at);
+  const getPlanKey = (s) => (s.plan || "").toString().toLowerCase();
 
   const planPricing = {
     basic: { monthlyPrice: 0, billingMonths: 6 },
@@ -87,35 +57,6 @@ export default function Dashboard() {
     enterprise: { monthlyPrice: 0, billingMonths: 12 },
     premium: { monthlyPrice: 1599, billingMonths: 12 },
     ultimate: { monthlyPrice: 2599, billingMonths: 12 },
-  };
-
-  const getPlanKey = (s) => (s.plan || "").toString().toLowerCase();
-
-  // Prefer server expiry_at (from subscription), else compute start + trial + plan months
-  const getEffectiveExpiryDate = (s) => {
-    const siteId = getSiteId(s);
-    const sub = siteId ? subsBySite.get(siteId) : null;
-    const explicitEnd = sub?.expiry_at ? toDate(sub.expiry_at) : null;
-    if (explicitEnd) return explicitEnd;
-
-    const plan = planPricing[getPlanKey(s)];
-    const months = plan?.billingMonths || 0; // basic:6, others:12
-    const start = getStartDate(s);
-    if (!start || months <= 0) return null;
-
-    const trialEnds = addDays(start, TRIAL_DAYS);
-    return addMonths(trialEnds ?? start, months);
-  };
-
-  const getTrialRemainingDays = (s) => {
-    const created = toDate(s.created_at) || toDate(s.updated_at);
-    if (!created) return null;
-    const today = new Date();
-    const daysSince = diffDays(today, created);
-    if (daysSince == null) return null;
-    const totalTrial = 14;
-    const remaining = totalTrial - daysSince;
-    return remaining;
   };
 
   // Load sites and then their subscriptions
@@ -129,26 +70,25 @@ export default function Dashboard() {
       const list = Array.isArray(data) ? data : [];
       setSites(list);
 
-      // Fetch subscriptions in parallel (best-effort, do not block on failures)
-// In Dashboard.jsx load()
-const entries = await Promise.allSettled(
-  list.map(async (s) => {
-    try {
-      const sub = await ensureSubscription(s); // creates if missing
-      return { sid: s?.id ?? s?._id, sub };
-    } catch {
-      return { sid: s?.id ?? s?._id, sub: null }; // keep resilient
-    }
-  })
-);
+      // Fetch subscriptions for each site
+      const entries = await Promise.allSettled(
+        list.map(async (s) => {
+          try {
+            const sub = await fetchSubscription(getSiteId(s));
+            return { sid: getSiteId(s), sub };
+          } catch {
+            return { sid: getSiteId(s), sub: null };
+          }
+        })
+      );
 
-const map = new Map();
-for (const r of entries) {
-  if (r.status === 'fulfilled' && r.value?.sid && r.value.sub) {
-    map.set(r.value.sid, r.value.sub);
-  }
-}
-setSubsBySite(map);
+      const map = new Map();
+      for (const r of entries) {
+        if (r.status === "fulfilled" && r.value?.sid) {
+          map.set(r.value.sid, r.value.sub);
+        }
+      }
+      setSubsBySite(map);
 
       setLastUpdated(new Date());
     } catch (e) {
@@ -160,99 +100,107 @@ setSubsBySite(map);
   };
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      if (!active) return;
-      await load();
-    })();
-    return () => {
-      active = false;
-    };
+    load();
   }, []);
 
-  // Filtered sites (quick plan filter)
+  // Filtered sites
   const filteredSites = useMemo(() => {
     if (planFilter === "all") return sites;
     return sites.filter((s) => getPlanKey(s) === planFilter);
   }, [sites, planFilter]);
 
   // Metrics
-  const totalSites = useMemo(() => filteredSites.length, [filteredSites]);
-  const totalUsers = useMemo(
-    () => filteredSites.reduce((sum, s) => sum + (s.user || 0), 0),
-    [filteredSites]
+  const totalSites = filteredSites.length;
+  const totalUsers = filteredSites.reduce((sum, s) => sum + (s.user || 0), 0);
+
+  const plansCount = filteredSites.reduce((acc, s) => {
+    const plan = getPlanKey(s) || "unknown";
+    acc[plan] = (acc[plan] || 0) + 1;
+    return acc;
+  }, {});
+
+  const activePlans = filteredSites.reduce(
+    (sum, s) => sum + (s.plan ? 1 : 0),
+    0
   );
 
-  const plansCount = useMemo(() => {
-    return filteredSites.reduce((acc, s) => {
-      const plan = getPlanKey(s) || "unknown";
-      acc[plan] = (acc[plan] || 0) + 1;
-      return acc;
-    }, {});
-  }, [filteredSites]);
+  const mrr = filteredSites.reduce((sum, s) => {
+    const p = planPricing[getPlanKey(s)];
+    return sum + (p ? p.monthlyPrice : 0);
+  }, 0);
+  const arr = mrr * 12;
 
-  const activePlans = useMemo(
-    () => filteredSites.reduce((sum, s) => sum + (s.plan ? 1 : 0), 0),
-    [filteredSites]
-  );
-
-  // MRR & ARR
-  const mrr = useMemo(() => {
-    return filteredSites.reduce((sum, s) => {
-      const p = planPricing[getPlanKey(s)];
-      return sum + (p ? p.monthlyPrice : 0);
-    }, 0);
-  }, [filteredSites]);
-
-  const arr = useMemo(() => mrr * 12, [mrr]);
-
-  const formatINR = useMemo(
-    () =>
-      new Intl.NumberFormat("en-IN", {
-        style: "currency",
-        currency: "INR",
-        maximumFractionDigits: 0,
-      }),
-    []
-  );
+  const formatINR = new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  });
 
   // Status lists
   const recentSites = useMemo(() => {
     const copy = [...filteredSites];
     copy.sort(
       (a, b) =>
-        (toDate(b.created_at) || toDate(b.updated_at) || 0) -
-        (toDate(a.created_at) || toDate(a.updated_at) || 0)
+        new Date(b.created_at || b.updated_at) -
+        new Date(a.created_at || a.updated_at)
     );
     return copy;
   }, [filteredSites]);
 
   const trialSites = useMemo(() => {
     return filteredSites
-      .map((s) => ({ ...s, trialRemainingDays: getTrialRemainingDays(s) }))
+      .map((s) => {
+        const siteId = getSiteId(s);
+        const sub = subsBySite.get(siteId);
+        const { trialEnds } = computeExpiry({
+          createdAt: s.created_at,
+          planKey: getPlanKey(s),
+          subscription: sub,
+        });
+        const today = new Date();
+        const trialRemainingDays = trialEnds
+          ? Math.max(
+              0,
+              Math.ceil((trialEnds - today) / (1000 * 60 * 60 * 24))
+            )
+          : null;
+        return { ...s, trialRemainingDays };
+      })
       .filter((s) => s.trialRemainingDays != null && s.trialRemainingDays > 0)
       .sort((a, b) => a.trialRemainingDays - b.trialRemainingDays);
-  }, [filteredSites]);
+  }, [filteredSites, subsBySite]);
 
   const expiredSites = useMemo(() => {
-    const now = new Date();
     return filteredSites
       .map((s) => {
-        const expiry = getEffectiveExpiryDate(s);
-        const daysPast = expiry ? diffDays(now, expiry) : null;
-        return { ...s, expiryDate: expiry, daysPastExpiry: daysPast };
+        const siteId = getSiteId(s);
+        const sub = subsBySite.get(siteId);
+        const { effectiveExpiry, daysToExpiry, isExpired } = computeExpiry({
+          createdAt: s.created_at,
+          planKey: getPlanKey(s),
+          subscription: sub,
+        });
+        return {
+          ...s,
+          expiryDate: effectiveExpiry,
+          daysPastExpiry: isExpired ? Math.abs(daysToExpiry) : null,
+        };
       })
-      .filter((s) => s.expiryDate && s.daysPastExpiry != null && s.daysPastExpiry > 0)
+      .filter((s) => s.expiryDate && s.daysPastExpiry != null)
       .sort((a, b) => b.daysPastExpiry - a.daysPastExpiry);
   }, [filteredSites, subsBySite]);
 
   const nearRenewalSites = useMemo(() => {
-    const now = new Date();
     return filteredSites
       .map((s) => {
-        const expiry = getEffectiveExpiryDate(s);
-        const daysToExpiry = expiry ? diffDays(expiry, now) : null;
-        return { ...s, expiryDate: expiry, daysToExpiry };
+        const siteId = getSiteId(s);
+        const sub = subsBySite.get(siteId);
+        const { effectiveExpiry, daysToExpiry } = computeExpiry({
+          createdAt: s.created_at,
+          planKey: getPlanKey(s),
+          subscription: sub,
+        });
+        return { ...s, expiryDate: effectiveExpiry, daysToExpiry };
       })
       .filter(
         (s) =>
@@ -300,7 +248,12 @@ setSubsBySite(map);
     </Paper>
   );
 
-  const DataCard = ({ title, items, renderSecondary, emptyText = "No data" }) => {
+  const DataCard = ({
+    title,
+    items,
+    renderSecondary,
+    emptyText = "No data",
+  }) => {
     const maxRows = 6;
     const rowHeight = 56;
     return (
@@ -331,7 +284,9 @@ setSubsBySite(map);
                 return (
                   <ListItemButton
                     key={siteId ?? s.name ?? i}
-                    onClick={() => siteId && navigate(`/sites/${siteId}`, { state: s })}
+                    onClick={() =>
+                      siteId && navigate(`/sites/${siteId}`, { state: s })
+                    }
                     sx={{
                       borderRadius: 1,
                       px: 1,
@@ -409,7 +364,12 @@ setSubsBySite(map);
 
   return (
     <Box sx={{ width: "100%" }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ mb: 1 }}
+      >
         <Typography variant="h4" fontWeight="bold">
           ERPEaz Admin Dashboard
         </Typography>
@@ -420,15 +380,17 @@ setSubsBySite(map);
             color={planFilter === "all" ? "primary" : "default"}
             onClick={() => setPlanFilter("all")}
           />
-          {["basic", "professional", "premium", "ultimate", "enterprise"].map((p) => (
-            <Chip
-              key={p}
-              label={p}
-              size="small"
-              color={planFilter === p ? "primary" : "default"}
-              onClick={() => setPlanFilter(p)}
-            />
-          ))}
+          {["basic", "professional", "premium", "ultimate", "enterprise"].map(
+            (p) => (
+              <Chip
+                key={p}
+                label={p}
+                size="small"
+                color={planFilter === p ? "primary" : "default"}
+                onClick={() => setPlanFilter(p)}
+              />
+            )
+          )}
           <IconButton aria-label="Refresh" onClick={load}>
             <RefreshIcon />
           </IconButton>
@@ -436,7 +398,9 @@ setSubsBySite(map);
       </Stack>
 
       <Typography variant="body2" sx={{ mb: 2 }} color="text.secondary">
-        {lastUpdated ? `Last updated: ${lastUpdated.toLocaleString()}` : "Loading…"}
+        {lastUpdated
+          ? `Last updated: ${lastUpdated.toLocaleString()}`
+          : "Loading…"}
       </Typography>
 
       {err && (
@@ -471,7 +435,7 @@ setSubsBySite(map);
             title="Recently Created"
             items={recentSites}
             renderSecondary={(s) => {
-              const created = toDate(s.created_at) || toDate(s.updated_at);
+              const created = new Date(s.created_at || s.updated_at);
               return (
                 <Typography variant="caption" color="text.secondary">
                   {created ? `Created: ${created.toLocaleDateString()}` : "Created: —"}

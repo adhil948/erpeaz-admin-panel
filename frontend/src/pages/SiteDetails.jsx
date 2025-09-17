@@ -26,6 +26,11 @@ import {
   renewSubscription,
 } from "../api/subscription";
 
+import {
+  computeExpiry,
+  planMonths,
+} from "../utils/subscription";
+
 export default function SiteDetails() {
   const { state } = useLocation();
   const { id } = useParams();
@@ -42,40 +47,8 @@ export default function SiteDetails() {
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState(null);
 
-  // Confirmation dialog state
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [confirmKind, setConfirmKind] = React.useState(null); // 'init' | 'renew'
-
-  // Constants
-  const MS_PER_DAY = 24 * 60 * 60 * 1000;
-  const TRIAL_DAYS = 14;
-
-  // Helpers
-  const toDateSafe = (v) => {
-    const d = v ? new Date(v) : null;
-    return d && !isNaN(d.getTime()) ? d : null;
-  };
-
-  const addDays = (date, days) => {
-    if (!date || isNaN(date.getTime())) return null;
-    const d = new Date(date.getTime());
-    d.setDate(d.getDate() + days);
-    return d;
-  };
-
-  const addMonths = (date, months) => {
-    if (!date || isNaN(date.getTime())) return null;
-    const d = new Date(date.getTime());
-    d.setMonth(d.getMonth() + months);
-    return d;
-  };
-
-  const daysDiff = (to, from) => {
-    if (!to || !from) return null;
-    const end = new Date(to.getFullYear(), to.getMonth(), to.getDate());
-    const start = new Date(from.getFullYear(), from.getMonth(), from.getDate());
-    return Math.ceil((end.getTime() - start.getTime()) / MS_PER_DAY);
-  };
 
   const formatDate = (d) => {
     if (!d) return "N/A";
@@ -92,22 +65,7 @@ export default function SiteDetails() {
     return value.site_url || value.url || value._id || "—";
   };
 
-  const planMonths = (planKey) => (planKey === "basic" ? 6 : 12);
-
-  const handleSummaryChange = React.useCallback(
-    (sums) => {
-      const received = sums?.received?.total ?? null;
-      const spent = sums?.spent?.total ?? 0;
-      const revenue = received != null ? received : spent;
-      const users = Number(site?.user || 0);
-      // ARPU calc
-      // eslint-disable-next-line no-unused-vars
-      const _arpu = users > 0 ? Math.round(revenue / users) : 0;
-    },
-    [site?.user]
-  );
-
-  // Load site (from external API)
+  // Load site
   React.useEffect(() => {
     if (site) return;
     let active = true;
@@ -116,7 +74,7 @@ export default function SiteDetails() {
         setLoading(true);
         const data = await fetchSiteById(id);
         if (active) setSite(data);
-      } catch (e) {
+      } catch {
         setError("Failed to load site");
       } finally {
         if (active) setLoading(false);
@@ -127,7 +85,7 @@ export default function SiteDetails() {
     };
   }, [id, site]);
 
-  // Load subscription once site is present
+  // Load subscription
   React.useEffect(() => {
     if (!site) return;
     let active = true;
@@ -137,8 +95,7 @@ export default function SiteDetails() {
         setSubError(null);
         const s = await fetchSubscription(site._id || id);
         if (active) setSub(s);
-      } catch (e) {
-        // If API helper returns null on 404, treat other errors as warning
+      } catch {
         setSubError("Failed to load subscription");
       } finally {
         if (active) setSubLoading(false);
@@ -153,31 +110,17 @@ export default function SiteDetails() {
   const planKey = String(site?.plan || "").toLowerCase();
   const siteId = site?._id || id;
 
-  // Fallback computation when subscription record not created yet
-  const createdAt = site?.created_at;
-  const createdAtDate = toDateSafe(createdAt);
-  const fallbackTrialEnds = createdAtDate ? addDays(createdAtDate, TRIAL_DAYS) : null;
+  const { effectiveExpiry, trialEnds, daysToExpiry, isExpired } = computeExpiry({
+    createdAt: site?.created_at,
+    planKey,
+    subscription: sub,
+  });
 
-  const fallbackExpiry = React.useMemo(() => {
-    if (!createdAtDate) return null;
-    const months = planMonths(planKey);
-    if (months <= 0) return null;
-    const base = fallbackTrialEnds ?? createdAtDate;
-    return addMonths(base, months);
-  }, [createdAtDate, fallbackTrialEnds, planKey]);
-
-  // Prefer server subscription expiry; else fallback to computed
-  const effectiveExpiry = sub?.expiry_at ? toDateSafe(sub.expiry_at) : fallbackExpiry;
-  const trialEnds = sub?.trial_end_at ? toDateSafe(sub.trial_end_at) : fallbackTrialEnds;
-
-  const daysToExpiry = effectiveExpiry ? daysDiff(effectiveExpiry, new Date()) : null;
-  const isExpired = daysToExpiry != null && daysToExpiry < 0;
-
-  // Actions (actual API calls)
+  // Actions
   const doInit = async () => {
     const payload = {
       plan_key: planKey,
-      start_at: createdAt || new Date().toISOString(),
+      start_at: site?.created_at || new Date().toISOString(),
     };
     const created = await initSubscription(siteId, payload);
     setSub(created);
@@ -189,7 +132,7 @@ export default function SiteDetails() {
     setSub(updated);
   };
 
-  // Handlers that first open confirmation, then run API if confirmed
+  // Confirmation handlers
   const openConfirmInit = () => {
     setConfirmKind("init");
     setConfirmOpen(true);
@@ -212,7 +155,7 @@ export default function SiteDetails() {
         await doRenew();
       }
       handleConfirmClose();
-    } catch (e) {
+    } catch {
       setSaveError(
         confirmKind === "init"
           ? "Failed to initialize subscription"
@@ -226,45 +169,21 @@ export default function SiteDetails() {
   // Loading/error states
   if (loading) {
     return (
-      <Box
-        sx={{
-          p: 3,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: 200,
-        }}
-      >
+      <Box sx={{ p: 3, display: "flex", justifyContent: "center", alignItems: "center", minHeight: 200 }}>
         <Typography>Loading…</Typography>
       </Box>
     );
   }
   if (error) {
     return (
-      <Box
-        sx={{
-          p: 3,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: 200,
-        }}
-      >
+      <Box sx={{ p: 3, display: "flex", justifyContent: "center", alignItems: "center", minHeight: 200 }}>
         <Typography color="error">{error}</Typography>
       </Box>
     );
   }
   if (!site) {
     return (
-      <Box
-        sx={{
-          p: 3,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: 200,
-        }}
-      >
+      <Box sx={{ p: 3, display: "flex", justifyContent: "center", alignItems: "center", minHeight: 200 }}>
         <Typography>No data found</Typography>
       </Box>
     );
@@ -272,39 +191,16 @@ export default function SiteDetails() {
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        mb={3}
-        sx={{ maxWidth: 1200, mx: "auto" }}
-      >
-        <Typography variant="h5" fontWeight="medium">
-          Site Details
-        </Typography>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3} sx={{ maxWidth: 1200, mx: "auto" }}>
+        <Typography variant="h5" fontWeight="medium">Site Details</Typography>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" size="small" onClick={() => navigate(-1)}>
-            Back
-          </Button>
-          {/* Show Initialize if no subscription yet, else show Renew */}
+          <Button variant="outlined" size="small" onClick={() => navigate(-1)}>Back</Button>
           {sub ? (
-            <Button
-              variant="contained"
-              color="primary"
-              size="small"
-              onClick={openConfirmRenew}
-              disabled={saving || subLoading}
-            >
+            <Button variant="contained" color="primary" size="small" onClick={openConfirmRenew} disabled={saving || subLoading}>
               Renew Plan
             </Button>
           ) : (
-            <Button
-              variant="contained"
-              color="primary"
-              size="small"
-              onClick={openConfirmInit}
-              disabled={saving || subLoading}
-            >
+            <Button variant="contained" color="primary" size="small" onClick={openConfirmInit} disabled={saving || subLoading}>
               Initialize Subscription
             </Button>
           )}
@@ -313,16 +209,12 @@ export default function SiteDetails() {
 
       {saveError && (
         <Box sx={{ maxWidth: 1200, mx: "auto", mb: 2 }}>
-          <Alert severity="error" variant="outlined">
-            {saveError}
-          </Alert>
+          <Alert severity="error" variant="outlined">{saveError}</Alert>
         </Box>
       )}
       {subError && (
         <Box sx={{ maxWidth: 1200, mx: "auto", mb: 2 }}>
-          <Alert severity="warning" variant="outlined">
-            {subError}
-          </Alert>
+          <Alert severity="warning" variant="outlined">{subError}</Alert>
         </Box>
       )}
 
@@ -335,9 +227,7 @@ export default function SiteDetails() {
           <DialogContentText>
             {confirmKind === "init"
               ? `This will create a subscription for “${site?.name || "site"}” with plan “${planKey || "plan"}”.`
-              : `This will extend the current “${planKey || "plan"}” by ${
-                  planMonths(planKey)
-                } months from ${
+              : `This will extend the current “${planKey || "plan"}” by ${planMonths(planKey)} months from ${
                   effectiveExpiry && effectiveExpiry > new Date()
                     ? `its current expiry (${formatDate(effectiveExpiry)})`
                     : "today"
@@ -345,16 +235,8 @@ export default function SiteDetails() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleConfirmClose} disabled={saving}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleConfirmProceed}
-            variant="contained"
-            color="primary"
-            disabled={saving}
-            autoFocus
-          >
+          <Button onClick={handleConfirmClose} disabled={saving}>Cancel</Button>
+          <Button onClick={handleConfirmProceed} variant="contained" color="primary" disabled={saving} autoFocus>
             {confirmKind === "init" ? "Initialize" : "Confirm Renew"}
           </Button>
         </DialogActions>
@@ -362,30 +244,12 @@ export default function SiteDetails() {
 
       <Box sx={{ maxWidth: 1200, mx: "auto" }}>
         <Grid container spacing={3}>
-          {/* Summary header */}
           <Grid item xs={12}>
-            <Paper
-              elevation={0}
-              sx={{
-                p: 3,
-                borderRadius: 2,
-                border: "1px solid",
-                borderColor: "divider",
-              }}
-            >
-              <Stack
-                direction="row"
-                spacing={2}
-                alignItems="center"
-                flexWrap="wrap"
-                useFlexGap
-              >
-                {/* Expiry chip (all plans) */}
+            <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid", borderColor: "divider" }}>
+              <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
                 {effectiveExpiry && (
                   <Chip
-                    label={`${planKey || "plan"} ends: ${formatDate(
-                      effectiveExpiry
-                    )} ${
+                    label={`${planKey || "plan"} ends: ${formatDate(effectiveExpiry)} ${
                       daysToExpiry >= 0
                         ? `(${daysToExpiry} days left)`
                         : `(expired ${Math.abs(daysToExpiry)} days ago)`
@@ -396,147 +260,77 @@ export default function SiteDetails() {
                     sx={{ height: "auto", px: 1, textTransform: "capitalize" }}
                   />
                 )}
-
-                <Typography variant="h6" fontWeight="medium">
-                  {site.name || "Unnamed"}
-                </Typography>
-
-                <Chip
-                  label={site.plan || "No Plan"}
-                  size="small"
-                  sx={{ height: "auto", px: 1 }}
-                />
-
-                {/* Trial chip */}
+                <Typography variant="h6" fontWeight="medium">{site.name || "Unnamed"}</Typography>
+                <Chip label={site.plan || "No Plan"} size="small" sx={{ height: "auto", px: 1 }} />
                 <Chip
                   label={trialEnds && new Date() <= trialEnds ? "Trial" : "Active"}
                   color={trialEnds && new Date() <= trialEnds ? "warning" : "success"}
                   size="small"
                   sx={{ height: "auto", px: 1 }}
                 />
-
                 {site.created_at && (
-                  <Chip
-                    label={`Registered: ${formatDate(site.created_at)}`}
-                    size="small"
-                    variant="outlined"
-                    sx={{ height: "auto", px: 1 }}
-                  />
+                  <Chip label={`Registered: ${formatDate(site.created_at)}`} size="small" variant="outlined" sx={{ height: "auto", px: 1 }} />
                 )}
-
                 {trialEnds && (
-                  <Chip
-                    label={`Trial ends: ${formatDate(trialEnds)}`}
-                    size="small"
-                    variant="outlined"
-                    color="warning"
-                    sx={{ height: "auto", px: 1 }}
-                  />
+                  <Chip label={`Trial ends: ${formatDate(trialEnds)}`} size="small" variant="outlined" color="warning" sx={{ height: "auto", px: 1 }} />
                 )}
               </Stack>
             </Paper>
-
-            {/* Expiry status alert */}
             {effectiveExpiry && (
               <Box sx={{ mt: 2 }}>
                 <Paper elevation={0} sx={{ p: 0 }}>
                   <Alert
-                    severity={
-                      isExpired
-                        ? "error"
-                        : daysToExpiry <= 30
-                        ? "warning"
-                        : "info"
-                    }
+                    severity={isExpired ? "error" : daysToExpiry <= 30 ? "warning" : "info"}
                     variant="outlined"
                   >
                     {isExpired
-                      ? `Plan expired ${Math.abs(daysToExpiry)} days ago on ${formatDate(
-                          effectiveExpiry
-                        )}.`
-                      : `Plan ends on ${formatDate(
-                          effectiveExpiry
-                        )} — ${daysToExpiry} days remaining.`}
+                      ? `Plan expired ${Math.abs(daysToExpiry)} days ago on ${formatDate(effectiveExpiry)}.`
+                      : `Plan ends on ${formatDate(effectiveExpiry)} — ${daysToExpiry} days remaining.`}
                   </Alert>
                 </Paper>
               </Box>
             )}
           </Grid>
 
-          {/* Left: Organization details */}
+          {/* Organization details */}
           <Grid item xs={12} md={7}>
-            <Paper
-              elevation={0}
-              sx={{
-                p: 3,
-                borderRadius: 2,
-                border: "1px solid",
-                borderColor: "divider",
-              }}
-            >
+            <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid", borderColor: "divider" }}>
               <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
                 Organization Details
               </Typography>
               <Divider sx={{ mb: 3 }} />
               <Grid container spacing={3}>
-                {/* ... unchanged fields ... */}
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary" mb={0.5}>
-                    Company
-                  </Typography>
-                  <Typography variant="body1">
-                    {site.company_name || "—"}
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary" mb={0.5}>Company</Typography>
+                  <Typography variant="body1">{site.company_name || "—"}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary" mb={0.5}>
-                    Address
-                  </Typography>
-                  <Typography variant="body1">
-                    {site.company_address || "—"}
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary" mb={0.5}>Address</Typography>
+                  <Typography variant="body1">{site.company_address || "—"}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary" mb={0.5}>
-                    Email
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary" mb={0.5}>Email</Typography>
                   <Typography variant="body1">{site.email || "—"}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary" mb={0.5}>
-                    Phone
-                  </Typography>
-                  <Typography variant="body1">
-                    {site.phone_number || "—"}
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary" mb={0.5}>Phone</Typography>
+                  <Typography variant="body1">{site.phone_number || "—"}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary" mb={0.5}>
-                    Country
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary" mb={0.5}>Country</Typography>
                   <Typography variant="body1">{site.country || "—"}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary" mb={0.5}>
-                    Users
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary" mb={0.5}>Users</Typography>
                   <Typography variant="body1">{site.user ?? "—"}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary" mb={0.5}>
-                    Username
-                  </Typography>
-                  <Typography variant="body1">
-                    {site.user_name || "—"}
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary" mb={0.5}>Username</Typography>
+                  <Typography variant="body1">{site.user_name || "—"}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary" mb={0.5}>
-                    Site URL/ID
-                  </Typography>
-                  <Typography variant="body1">
-                    {siteUrlDisplay(site.site_url)}
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary" mb={0.5}>Site URL/ID</Typography>
+                  <Typography variant="body1">{siteUrlDisplay(site.site_url)}</Typography>
                 </Grid>
               </Grid>
             </Paper>
