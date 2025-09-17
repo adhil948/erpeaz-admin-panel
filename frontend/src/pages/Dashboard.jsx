@@ -219,7 +219,7 @@ export default function Dashboard() {
     <Paper
       elevation={6}
       sx={{
-        minWidth: 420,
+        minWidth: 400,
         width: "100%",
         height: cardHeight,
         display: "flex",
@@ -380,17 +380,31 @@ export default function Dashboard() {
             color={planFilter === "all" ? "primary" : "default"}
             onClick={() => setPlanFilter("all")}
           />
-          {["basic", "professional", "premium", "ultimate", "enterprise"].map(
-            (p) => (
-              <Chip
-                key={p}
-                label={p}
-                size="small"
-                color={planFilter === p ? "primary" : "default"}
-                onClick={() => setPlanFilter(p)}
-              />
-            )
-          )}
+<Box
+  sx={{
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 1, // spacing between chips
+    alignItems: "center",
+  }}
+>
+
+  {["basic", "professional", "premium", "ultimate", "enterprise"].map((p) => (
+    <Chip
+      key={p}
+      label={p}
+      size="small"
+      color={planFilter === p ? "primary" : "default"}
+      onClick={() => setPlanFilter(p)}
+      sx={{
+        flex: "1 1 auto", // allow chips to shrink and grow
+        minWidth: "80px", // optional: keeps them readable
+        textAlign: "center",
+      }}
+    />
+  ))}
+</Box>
+
           <IconButton aria-label="Refresh" onClick={load}>
             <RefreshIcon />
           </IconButton>

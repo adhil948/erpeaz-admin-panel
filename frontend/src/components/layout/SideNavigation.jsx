@@ -41,7 +41,7 @@ export default function SideNavigation({
     { label: 'Revenue', path: '/revenue', icon: <CurrencyRupeeIcon /> },
   ];
 
-  const drawerContent = (
+  const drawerContent = ({ isOpen }) => (
     <Box sx={{ height: '100%', bgcolor: 'background.paper', display: 'flex', flexDirection: 'column' }}>
       <Toolbar
         sx={{
@@ -131,40 +131,43 @@ export default function SideNavigation({
   return (
     <>
       {/* Mobile Drawer */}
-      <Drawer
-        variant="temporary"
-        open={mobileOpen}
-        onClose={onMobileClose}
-        ModalProps={{ keepMounted: true }}
-        sx={{
-          display: { xs: 'block', sm: 'none' },
-          '& .MuiDrawer-paper': { width: drawerWidth },
-        }}
-      >
-        {drawerContent}
-      </Drawer>
+{/* Mobile Drawer */}
+<Drawer
+  variant="temporary"
+  open={mobileOpen}
+  onClose={onMobileClose}
+  ModalProps={{ keepMounted: true }}
+  sx={{
+    display: { xs: 'block', sm: 'none' },
+    '& .MuiDrawer-paper': { width: drawerWidth },
+  }}
+>
+  {/* Force drawer to behave expanded on mobile */}
+  {drawerContent({ isOpen: true })}
+</Drawer>
 
-      {/* Desktop Drawer */}
-      <Drawer
-        variant="permanent"
-        open={isOpen}
-        sx={{
-          width: isOpen ? drawerWidth : collapsedWidth,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: isOpen ? drawerWidth : collapsedWidth,
-            overflowX: 'hidden',
-            transition: (theme) =>
-              theme.transitions.create('width', {
-                easing: theme.transitions.easing.sharp,
-                duration: theme.transitions.duration.standard,
-              }),
-          },
-          display: { xs: 'none', sm: 'block' },
-        }}
-      >
-        {drawerContent}
-      </Drawer>
+{/* Desktop Drawer */}
+<Drawer
+  variant="permanent"
+  open={isOpen}
+  sx={{
+    width: isOpen ? drawerWidth : collapsedWidth,
+    flexShrink: 0,
+    '& .MuiDrawer-paper': {
+      width: isOpen ? drawerWidth : collapsedWidth,
+      overflowX: 'hidden',
+      transition: (theme) =>
+        theme.transitions.create('width', {
+          easing: theme.transitions.easing.sharp,
+          duration: theme.transitions.duration.standard,
+        }),
+    },
+    display: { xs: 'none', sm: 'block' },
+  }}
+>
+  {drawerContent({ isOpen })}
+</Drawer>
+
     </>
   );
 }
