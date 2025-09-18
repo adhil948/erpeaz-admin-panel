@@ -7,9 +7,38 @@ const { addDays, addMonths, planMonths, TRIAL_DAYS } = require("../utils/time");
 const EXTERNAL_API_BASE_URL = process.env.EXTERNAL_API_BASE_URL;
 const EXTERNAL_API_SITES_ENDPOINT = "/site-details";
 
+
+
+async function runSiteSync() {
+  const resp = await axios.get(`${EXTERNAL_API_BASE_URL}${EXTERNAL_API_SITES_ENDPOINT}`);
+  const sites = Array.isArray(resp.data?.data) ? resp.data.data : [];
+
+  for (const site of sites) {
+    const existing = await SiteSubscription.findOne({ siteId: site._id });
+        if (!existing) {
+          const planKey = site.plan || "Basic";
+          const start = new Date(site.created_at || Date.now());
+          const trialEnd = addDays(start, TRIAL_DAYS);
+          const expiry = addMonths(trialEnd, planMonths(planKey));
+
+      await SiteSubscription.create({
+        siteId: site._id,
+        plan_key: planKey,
+        start_at: start,
+        trial_end_at: trialEnd,
+        expiry_at: expiry,
+        renewal_history: [],
+      });
+
+      console.log(`Initialized subscription for site ${site._id}`);
+      console.log(site.plan)
+    }
+  }
+}
+
 function startSiteSyncJob() {
   // Run every 5 minutes
-  cron.schedule("* * * * * *", async () => {
+  cron.schedule("0 2 * * *", async () => {
     try {
       const resp = await axios.get(`${EXTERNAL_API_BASE_URL}${EXTERNAL_API_SITES_ENDPOINT}`);
       const sites = Array.isArray(resp.data?.data) ? resp.data.data : [];
@@ -41,4 +70,4 @@ function startSiteSyncJob() {
   });
 }
 
-module.exports = { startSiteSyncJob };
+module.exports = { startSiteSyncJob , runSiteSync };

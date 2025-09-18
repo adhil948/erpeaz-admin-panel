@@ -8,6 +8,7 @@ const revenueRoutes = require('./routes/revenue')
 const { startSiteNotificationJob } = require('./jobs/siteNotifications');
 const subscriptionRouter = require('./routes/subscription');
 const { startSiteSyncJob } = require("./jobs/syncsites");
+const adminRoutes = require("./routes/admin");
 
 
 
@@ -41,6 +42,7 @@ app.use('/api/notifications', notificationsRouter);
 app.use('/api/notifications', sseRouter);
 app.use('/api/sites/:siteId/subscription', subscriptionRouter); 
 app.use('/api', revenueRoutes);
+app.use("/api/job", adminRoutes);
 
 
 app.set('notifyBroadcast', null);

@@ -12,6 +12,7 @@ import {
   IconButton,
 } from '@mui/material';
 import CurrencyRupeeIcon from '@mui/icons-material/CurrencyRupee';
+import { Cached as RefreshIcon } from "@mui/icons-material";
 import {
   Dashboard as DashboardIcon,
   TableRows as TableRowsIcon,
@@ -40,6 +41,24 @@ export default function SideNavigation({
     { label: 'Sites', path: '/sites', icon: <TableRowsIcon /> },
     { label: 'Revenue', path: '/revenue', icon: <CurrencyRupeeIcon /> },
   ];
+  const handleSyncSubscriptions = async () => {
+  try {
+    const resp = await fetch(`${process.env.REACT_APP_API_URL}/job/sync-sites`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    const data = await resp.json();
+    if (data.success) {
+      alert("Subscriptions refreshed successfully ✅");
+    } else {
+      alert("Failed to refresh: " + (data.error || "Unknown error"));
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Error connecting to server ❌");
+  }
+};
+
 
   const drawerContent = ({ isOpen }) => (
     <Box sx={{ height: '100%', bgcolor: 'background.paper', display: 'flex', flexDirection: 'column' }}>
@@ -107,24 +126,47 @@ export default function SideNavigation({
 
       <Divider />
 
-      <Box sx={{ p: 2 }}>
-        {isOpen ? (
-          <ListItemButton onClick={onLogout} sx={{ borderRadius: 1 }}>
-            <ListItemIcon sx={{ minWidth: 0, mr: 2, justifyContent: 'center', color: 'error.main' }}>
-              <LogoutIcon />
-            </ListItemIcon>
-            <ListItemText primary="Logout" />
-          </ListItemButton>
-        ) : (
-          <Tooltip title="Logout" placement="right" arrow>
-            <ListItemButton onClick={onLogout} sx={{ justifyContent: 'center' }}>
-              <ListItemIcon sx={{ minWidth: 0, color: 'error.main' }}>
-                <LogoutIcon />
-              </ListItemIcon>
-            </ListItemButton>
-          </Tooltip>
-        )}
-      </Box>
+<Box sx={{ p: 2 }}>
+  {/* Refresh Subscriptions Button */}
+  {isOpen ? (
+    <ListItemButton onClick={handleSyncSubscriptions} sx={{ borderRadius: 1 }}>
+      <RefreshIcon
+        sx={{ minWidth: 0, mr: 2, justifyContent: "center", color: "warning.main" }}
+      >
+        <TableRowsIcon /> {/* or use CachedIcon / RefreshIcon */}
+      </RefreshIcon>
+      <ListItemText primary="Refresh Subscriptions" />
+    </ListItemButton>
+  ) : (
+    <Tooltip title="Refresh Subscriptions" placement="right" arrow>
+      <ListItemButton onClick={handleSyncSubscriptions} sx={{ justifyContent: "center" }}>
+        <RefreshIcon sx={{ minWidth: 0, color: "warning.main" }}>
+          <TableRowsIcon />
+        </RefreshIcon>
+      </ListItemButton>
+    </Tooltip>
+  )}
+
+  {/* Logout Button */}
+  {isOpen ? (
+    <ListItemButton onClick={onLogout} sx={{ borderRadius: 1, mt: 1 }}>
+      <ListItemIcon sx={{ minWidth: 0, mr: 2, justifyContent: "center", color: "error.main" }}>
+        <LogoutIcon />
+      </ListItemIcon>
+      <ListItemText primary="Logout" />
+    </ListItemButton>
+  ) : (
+    <Tooltip title="Logout" placement="right" arrow>
+      <ListItemButton onClick={onLogout} sx={{ justifyContent: "center" }}>
+        <ListItemIcon sx={{ minWidth: 0, color: "error.main" }}>
+          <LogoutIcon />
+        </ListItemIcon>
+      </ListItemButton>
+    </Tooltip>
+  )}
+</Box>
+
+
     </Box>
   );
 
