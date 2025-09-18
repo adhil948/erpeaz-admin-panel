@@ -29,7 +29,7 @@ attachBroadcast(app); // this should be after the default and not overwritten la
 connectDB();
 
 app.use(cors({
-  origin: 'https://admin.webeaz.in', // your frontend URL
+  origin: ['https://admin.webeaz.in','http://localhost:3000'], // your frontend URL
   credentials: true, // if you need cookies
 }));
 app.use(express.json());

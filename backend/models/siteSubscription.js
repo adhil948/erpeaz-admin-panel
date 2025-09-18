@@ -15,7 +15,7 @@ const SiteSubscriptionSchema = new mongoose.Schema({
   siteId: { type: String, required: true, unique: true, index: true },
   plan_key: { 
     type: String, 
-    enum: ['basic','professional','premium','ultimate','enterprise'], 
+    enum: ['Basic','Professional','Premium','Ultimate','Enterprise'], 
     required: true 
   },
   start_at: { type: Date, required: true },        // UTC

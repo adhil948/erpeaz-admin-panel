@@ -9,7 +9,7 @@ const EXTERNAL_API_SITES_ENDPOINT = "/site-details";
 
 function startSiteSyncJob() {
   // Run every 5 minutes
-  cron.schedule("* * * * *", async () => {
+  cron.schedule("* * * * * *", async () => {
     try {
       const resp = await axios.get(`${EXTERNAL_API_BASE_URL}${EXTERNAL_API_SITES_ENDPOINT}`);
       const sites = Array.isArray(resp.data?.data) ? resp.data.data : [];
@@ -17,7 +17,7 @@ function startSiteSyncJob() {
       for (const site of sites) {
         const existing = await SiteSubscription.findOne({ siteId: site._id });
         if (!existing) {
-          const planKey = site.plan?.key || "basic";
+          const planKey = site.plan || "Basic";
           const start = new Date(site.created_at || Date.now());
           const trialEnd = addDays(start, TRIAL_DAYS);
           const expiry = addMonths(trialEnd, planMonths(planKey));
@@ -31,7 +31,8 @@ function startSiteSyncJob() {
             renewal_history: [],
           });
 
-          console.log(`Initialized subscription for site ${site._id}`);
+          console.log(`Initialized fsubscription for site ${site._id}`);
+          console.log(site.plan)
         }
       }
     } catch (err) {
