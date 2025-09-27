@@ -350,8 +350,8 @@ export default function Dashboard() {
       label: "Revenue",
       value: (
         <>
-          {formatINR.format(mrr)} MRR <br />
-          {formatINR.format(arr)} ARR
+          {formatINR.format(mrr)} Monthly <br />
+          {formatINR.format(arr)} Annualy
         </>
       ),
       extra: (
