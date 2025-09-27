@@ -13,7 +13,7 @@ function addMonths(d, months) {
   return x;
 }
 function planMonths(planKey) {
-  return planKey === 'basic' ? 6 : 12;
+  return planKey === 'basic' || 'Basic' ? 6 : 12;
 }
 
 module.exports = { addDays, addMonths, planMonths, TRIAL_DAYS, MS_PER_DAY };
