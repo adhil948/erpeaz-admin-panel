@@ -392,7 +392,7 @@ export default function Dashboard() {
   {["basic", "professional", "premium", "ultimate", "enterprise"].map((p) => (
     <Chip
       key={p}
-      label={p}
+      label={p.toUpperCase().charAt(0) + p.slice(1)}
       size="small"
       color={planFilter === p ? "primary" : "default"}
       onClick={() => setPlanFilter(p)}
