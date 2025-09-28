@@ -51,6 +51,9 @@ export default function SiteDetails() {
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [confirmKind, setConfirmKind] = React.useState(null); // 'init' | 'renew'
 
+  const [emailLoading, setEmailLoading] = React.useState(false);
+const [emailMessage, setEmailMessage] = React.useState(null);
+
   const formatDate = (d) => {
     if (!d) return "N/A";
     return new Date(d).toLocaleDateString("en-IN", {
@@ -65,6 +68,29 @@ export default function SiteDetails() {
     if (typeof value === "string") return value;
     return value.site_url || value.url || value._id || "—";
   };
+
+
+const handleSendEmail = async () => {
+  try {
+    setEmailLoading(true);
+    const res = await fetch(`/api/sites/${siteId}/send-email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!res.ok) throw new Error("Request failed");
+    const data = await res.json();
+
+    // Always keep the success message
+    setEmailMessage({ type: "success", text: "Email already sent" });
+  } catch (err) {
+    setEmailMessage({ type: "error", text: err.message || "Failed to send email" });
+  } finally {
+    setEmailLoading(false);
+  }
+};
+
+
+
 
   // Load site
   React.useEffect(() => {
@@ -229,9 +255,56 @@ export default function SiteDetails() {
           Site Details
         </Typography>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <Button variant="outlined" size="small" onClick={() => navigate(-1)}>
+          <Button variant="outlined" size="small" color="secondary" onClick={() => navigate(-1)}>
             Back
           </Button>
+
+<Box>
+  <Stack spacing={0.5} alignItems="flex-start">
+    <Button
+      variant="contained"
+      color="secondary"
+      size="small"
+      onClick={handleSendEmail}
+      disabled={emailLoading}
+      sx={{ textTransform: "none", px: 2 }}
+    >
+      {emailLoading ? "Sending..." : "Send Email"}
+    </Button>
+
+    {emailMessage && (
+      <Paper
+        elevation={0}
+        sx={{
+          px: 1.5,
+          py: 0.5,
+          borderRadius: 1.5,
+          backgroundColor:
+            emailMessage.type === "success"
+              ? "success.light"
+              : "error.light",
+          maxWidth: 240, // control wrapping width
+        }}
+      >
+        <Typography
+          variant="caption"
+          sx={{
+            whiteSpace: "normal", // allow line breaks
+            wordBreak: "break-word",
+            color:
+              emailMessage.type === "success"
+                ? "success.dark"
+                : "error.dark",
+          }}
+        >
+          {emailMessage.text}
+        </Typography>
+      </Paper>
+    )}
+  </Stack>
+</Box>
+
+
           {sub ? (
             <Button
               variant="contained"
@@ -459,6 +532,7 @@ export default function SiteDetails() {
                 <Typography variant="body2" color="text.secondary" mb={0.5}>
                   Username
                 </Typography>
+                <Typography variant="body1"></Typography>
                 <Typography variant="body1">
                   {site.user_name || "—"}
                 </Typography>

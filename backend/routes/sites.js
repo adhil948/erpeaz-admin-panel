@@ -34,6 +34,23 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+
+// POST /api/sites/:id/send-email
+router.post("/:id/send-email", async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Later you'll replace this with the real API call:
+    // await axios.post("http://other-node-service/send-email", { company_id: id });
+
+    console.log(`Simulating email send for site ID: ${id}`);
+    res.json({ message: `Email triggered for site ${id}` });
+  } catch (err) {
+    console.error("Send email error:", err);
+    res.status(500).json({ error: "Failed to send email" });
+  }
+});
+
+
 // Mount per-site expenses under /api/sites/:siteId/expenses
 router.use('/:siteId/expenses', expensesRouter); // IMPORTANT: nested mount
 
