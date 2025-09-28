@@ -73,7 +73,7 @@ const [emailMessage, setEmailMessage] = React.useState(null);
 const handleSendEmail = async () => {
   try {
     setEmailLoading(true);
-    const res = await fetch(`/api/sites/${siteId}/send-email`, {
+    const res = await fetch(`${process.env.REACT_APP_API_URL}/sites/${siteId}/send-email`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
     });

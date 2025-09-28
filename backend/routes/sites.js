@@ -41,6 +41,7 @@ router.post("/:id/send-email", async (req, res) => {
   try {
     // Later you'll replace this with the real API call:
     // await axios.post("http://other-node-service/send-email", { company_id: id });
+    await axios.post(`${EXTERNAL_API_BASE_URL}/usermail/${id}`)
 
     console.log(`Simulating email send for site ID: ${id}`);
     res.json({ message: `Email triggered for site ${id}` });
