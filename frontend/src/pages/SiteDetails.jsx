@@ -566,45 +566,7 @@ export default function SiteDetails() {
           </Paper>
         </Grid>
 
-        {/* Alerts and current plan status card on the right column */}
-        {/* <Grid item xs={12} md={5}>
-          <Paper elevation={0} sx={cardSx}>
-            <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
-              Plan Status
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            <Stack spacing={1.5}>
-              <Typography variant="body2" color="text.secondary">
-                Current Plan
-              </Typography>
-              <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
-                <Chip
-                  label={site.plan || "No Plan"}
-                  size="small"
-                  sx={{ height: "auto", px: 1, textTransform: "capitalize" }}
-                />
-                {trialEnds && (
-                  <Chip
-                    label={`Trial ends: ${formatDate(trialEnds)}`}
-                    size="small"
-                    variant="outlined"
-                    color="warning"
-                    sx={{ height: "auto", px: 1 }}
-                  />
-                )}
-                {effectiveExpiry && (
-                  <Chip
-                    label={`Ends: ${formatDate(effectiveExpiry)}`}
-                    size="small"
-                    variant="outlined"
-                    color={isExpired ? "error" : "warning"}
-                    sx={{ height: "auto", px: 1 }}
-                  />
-                )}
-              </Stack>
-            </Stack>
-          </Paper>
-        </Grid> */}
+
 
         {/* Full-width sections */}
         <Grid item xs={12}>
