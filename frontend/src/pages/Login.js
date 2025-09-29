@@ -9,6 +9,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import axios from 'axios';
+import logo from '../assets/Logo.svg';
 
 const Login = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
@@ -63,9 +64,14 @@ const Login = ({ onLoginSuccess }) => {
         elevation={6}
         sx={{ maxWidth: 400, p: 4, width: '100%', borderRadius: 2 }}
       >
-        <Typography variant="h5" align="center" mb={3}>
-          ERPEaz Admin Panel Login
-        </Typography>
+      <Box display="flex" justifyContent="center" mb={3}>
+  <img
+    src={logo}  
+    alt="ERPEaz Logo"
+    style={{ height: 60, objectFit: "contain" }}
+  />
+</Box>
+
         <form noValidate onSubmit={handleSubmit}>
           <TextField
             label="Email"
