@@ -122,17 +122,17 @@ export default function ExpensesSection({ siteId, onSummaryChange = () => {} }) 
         <DialogTitle>{editing ? 'Edit Expense' : 'Add Expense'}</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2} mt={1}>
-            <TextField label="Amount" type="number" value={form.amount}
+            <TextField label="Amount" color='black' type="number" value={form.amount}
                        onChange={(e) => setForm(f => ({ ...f, amount: e.target.value }))} required />
-            <TextField label="Type" select value={form.kind}
+            <TextField label="Type" color='black' select value={form.kind}
                        onChange={(e) => setForm(f => ({ ...f, kind: e.target.value }))}>
               <MenuItem value="recieved">Recieved</MenuItem>
               <MenuItem value="planned">Planned</MenuItem>
               <MenuItem value="due">Due</MenuItem>
             </TextField>
-            <TextField label="Date" type="date" value={form.date}
+            <TextField label="Date" color='black' type="date" value={form.date}
                        onChange={(e) => setForm(f => ({ ...f, date: e.target.value }))} InputLabelProps={{ shrink: true }} />
-            <TextField label="Note" value={form.note}
+            <TextField label="Note" color='black' value={form.note}
                        onChange={(e) => setForm(f => ({ ...f, note: e.target.value }))} multiline minRows={2} />
           </Stack>
         </DialogContent>

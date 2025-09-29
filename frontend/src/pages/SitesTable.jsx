@@ -149,6 +149,7 @@ const columns = [
           <TextField
             size="small"
             label="Search"
+            color='black'
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -156,6 +157,7 @@ const columns = [
             select
             size="small"
             label="Plan"
+            color='black'
             value={plan}
             onChange={(e) => setPlan(e.target.value)}
             sx={{ width: 160 }}

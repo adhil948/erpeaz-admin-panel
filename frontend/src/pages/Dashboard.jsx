@@ -250,7 +250,7 @@ export default function Dashboard() {
   );
 
   const DataCard = ({
-    title,
+    title,     
     items,
     renderSecondary,
     emptyText = "No data",
