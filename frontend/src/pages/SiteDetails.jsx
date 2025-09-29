@@ -19,6 +19,8 @@ import {
   Container,
   useMediaQuery,
   useTheme,
+  Link,
+  // Skeleton, // Uncomment if adopting skeletons for loading
 } from "@mui/material";
 import { fetchSiteById } from "../api/sites";
 import ExpensesSection from "../components/ExpensesSection";
@@ -52,7 +54,21 @@ export default function SiteDetails() {
   const [confirmKind, setConfirmKind] = React.useState(null); // 'init' | 'renew'
 
   const [emailLoading, setEmailLoading] = React.useState(false);
-const [emailMessage, setEmailMessage] = React.useState(null);
+  const [emailMessage, setEmailMessage] = React.useState(null);
+
+  // Common card styling
+  const cardSx = {
+    p: { xs: 2, md: 3 },
+    borderRadius: 2,
+    border: "1px solid",
+    borderColor: "divider",
+    bgcolor: "background.paper",
+  };
+
+  const siteStatusDisplay = (site) => {
+    if (!site?.site_url) return "—";
+    return site.site_url.status || "—";
+  };
 
   const formatDate = (d) => {
     if (!d) return "N/A";
@@ -69,28 +85,30 @@ const [emailMessage, setEmailMessage] = React.useState(null);
     return value.site_url || value.url || value._id || "—";
   };
 
-
-const handleSendEmail = async () => {
-  try {
-    setEmailLoading(true);
-    const res = await fetch(`${process.env.REACT_APP_API_URL}/sites/${siteId}/send-email`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
-    if (!res.ok) throw new Error("Request failed");
-    const data = await res.json();
-
-    // Always keep the success message
-    setEmailMessage({ type: "success", text: "Email already sent" });
-  } catch (err) {
-    setEmailMessage({ type: "error", text: err.message || "Failed to send email" });
-  } finally {
-    setEmailLoading(false);
-  }
-};
-
-
-
+  const handleSendEmail = async () => {
+    try {
+      setEmailLoading(true);
+      const siteId = site?._id || id;
+      const res = await fetch(
+        `${process.env.REACT_APP_API_URL}/sites/${siteId}/send-email`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      if (!res.ok) throw new Error("Request failed");
+      await res.json();
+      // Keep consistent message
+      setEmailMessage({ type: "success", text: "Email already sent" });
+    } catch (err) {
+      setEmailMessage({
+        type: "error",
+        text: err.message || "Failed to send email",
+      });
+    } finally {
+      setEmailLoading(false);
+    }
+  };
 
   // Load site
   React.useEffect(() => {
@@ -204,6 +222,12 @@ const handleSendEmail = async () => {
             alignItems: "center",
           }}
         >
+          {/* Replace with Skeletons for polished loading if desired */}
+          {/* <Stack spacing={2} sx={{ width: "100%" }}>
+            <Skeleton variant="rounded" height={56} />
+            <Skeleton variant="rounded" height={120} />
+            <Skeleton variant="rounded" height={240} />
+          </Stack> */}
           <Typography>Loading…</Typography>
         </Box>
       </Container>
@@ -242,168 +266,40 @@ const handleSendEmail = async () => {
     );
   }
 
+  // Status chip color helper
+  const statusColor =
+    site.site_url?.status === "completed"
+      ? "success"
+      : site.site_url?.status === "pending"
+      ? "warning"
+      : "default";
+
   return (
     <Container component="main" maxWidth="lg" sx={{ py: { xs: 2, md: 3 } }}>
-      <Stack
-        direction={{ xs: "column", sm: "row" }}
-        alignItems={{ xs: "flex-start", sm: "center" }}
-        justifyContent="space-between"
-        spacing={{ xs: 1.5, sm: 2 }}
-        mb={3}
-      >
-        <Typography variant="h5" fontWeight="medium">
-          Site Details
-        </Typography>
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <Button variant="outlined" size="small" color="secondary" onClick={() => navigate(-1)}>
-            Back
-          </Button>
-
-<Box>
-  <Stack spacing={0.5} alignItems="flex-start">
-    <Button
-      variant="contained"
-      color="secondary"
-      size="small"
-      onClick={handleSendEmail}
-      disabled={emailLoading}
-      sx={{ textTransform: "none", px: 2 }}
-    >
-      {emailLoading ? "Sending..." : "Send Email"}
-    </Button>
-
-    {emailMessage && (
-      <Paper
-        elevation={0}
-        sx={{
-          px: 1.5,
-          py: 0.5,
-          borderRadius: 1.5,
-          backgroundColor:
-            emailMessage.type === "success"
-              ? "success.light"
-              : "error.light",
-          maxWidth: 240, // control wrapping width
-        }}
-      >
-        <Typography
-          variant="caption"
-          sx={{
-            whiteSpace: "normal", // allow line breaks
-            wordBreak: "break-word",
-            color:
-              emailMessage.type === "success"
-                ? "success.dark"
-                : "error.dark",
-          }}
+      {/* Page header: title + actions */}
+      <Paper elevation={0} sx={{ ...cardSx, mb: 2 }}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          alignItems={{ xs: "flex-start", sm: "center" }}
+          justifyContent="space-between"
+          spacing={{ xs: 1.5, sm: 2 }}
         >
-          {emailMessage.text}
-        </Typography>
-      </Paper>
-    )}
-  </Stack>
-</Box>
-
-
-          {sub ? (
-            <Button
-              variant="contained"
-              color="primary"
-              size="small"
-              onClick={openConfirmRenew}
-              disabled={saving || subLoading}
-            >
-              Renew Plan
-            </Button>
-          ) : (
-            <Button
-              variant="contained"
-              color="primary"
-              size="small"
-              onClick={openConfirmInit}
-              disabled={saving || subLoading}
-            >
-              Initialize Subscription
-            </Button>
-          )}
-        </Stack>
-      </Stack>
-
-      {saveError && (
-        <Box mb={2}>
-          <Alert severity="error" variant="outlined">
-            {saveError}
-          </Alert>
-        </Box>
-      )}
-      {subError && (
-        <Box mb={2}>
-          <Alert severity="warning" variant="outlined">
-            {subError}
-          </Alert>
-        </Box>
-      )}
-
-      {/* Confirmation Dialog */}
-      <Dialog
-        open={confirmOpen}
-        onClose={handleConfirmClose}
-        fullScreen={fullScreenDialog}
-        fullWidth
-        maxWidth="sm"
-      >
-        <DialogTitle>
-          {confirmKind === "init" ? "Initialize subscription?" : "Renew plan?"}
-        </DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            {confirmKind === "init"
-              ? `This will create a subscription for “${site?.name || "site"}” with plan “${planKey || "plan"}”.`
-              : `This will extend the current “${planKey || "plan"}” by ${planMonths(planKey)} months from ${
-                  effectiveExpiry && effectiveExpiry > new Date()
-                    ? `its current expiry (${formatDate(effectiveExpiry)})`
-                    : "today"
-                }.`}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleConfirmClose} disabled={saving}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleConfirmProceed}
-            variant="contained"
-            color="primary"
-            disabled={saving}
-            autoFocus
-          >
-            {confirmKind === "init" ? "Initialize" : "Confirm Renew"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Grid container spacing={{ xs: 2, md: 3 }}>
-        <Grid item xs={12}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: { xs: 2, md: 3 },
-              borderRadius: 2,
-              border: "1px solid",
-              borderColor: "divider",
-            }}
-          >
+          <Stack spacing={0.5}>
+            <Typography variant="h5" fontWeight="medium">
+              Site Details
+            </Typography>
             <Stack
               direction="row"
               spacing={1}
-              flexWrap="wrap"
               useFlexGap
-              rowGap={1}
+              sx={{ flexWrap: "wrap" }}
               alignItems="center"
             >
               {effectiveExpiry && (
                 <Chip
-                  label={`${planKey || "plan"} ends: ${formatDate(effectiveExpiry)} ${
+                  label={`${planKey || "plan"} ends: ${formatDate(
+                    effectiveExpiry
+                  )} ${
                     daysToExpiry >= 0
                       ? `(${daysToExpiry} days left)`
                       : `(expired ${Math.abs(daysToExpiry)} days ago)`
@@ -411,23 +307,18 @@ const handleSendEmail = async () => {
                   size="small"
                   variant="outlined"
                   color={daysToExpiry >= 0 ? "warning" : "error"}
-                  sx={{
-                    height: "auto",
-                    px: 1,
-                    textTransform: "capitalize",
-                  }}
+                  sx={{ height: "auto", px: 1, textTransform: "capitalize" }}
                 />
               )}
-              <Typography variant="h6" fontWeight="medium">
-                {site.name || "Unnamed"}
-              </Typography>
               <Chip
                 label={site.plan || "No Plan"}
                 size="small"
-                sx={{ height: "auto", px: 1 }}
+                sx={{ height: "auto", px: 1, textTransform: "capitalize" }}
               />
               <Chip
-                label={trialEnds && new Date() <= trialEnds ? "Trial" : "Active"}
+                label={
+                  trialEnds && new Date() <= trialEnds ? "Trial" : "Active"
+                }
                 color={
                   trialEnds && new Date() <= trialEnds ? "warning" : "success"
                 }
@@ -452,37 +343,147 @@ const handleSendEmail = async () => {
                 />
               )}
             </Stack>
-          </Paper>
+          </Stack>
 
-          {effectiveExpiry && (
-            <Box sx={{ mt: 2 }}>
-              <Alert
-                severity={isExpired ? "error" : daysToExpiry <= 30 ? "warning" : "info"}
-                variant="outlined"
+          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
+            <Button
+              variant="outlined"
+              size="small"
+              color="secondary"
+              onClick={() => navigate(-1)}
+            >
+              Back
+            </Button>
+
+            <Stack spacing={0.5} alignItems="flex-start">
+              <Button
+                variant="contained"
+                color="secondary"
+                size="small"
+                onClick={handleSendEmail}
+                disabled={emailLoading}
+                sx={{ textTransform: "none", px: 2 }}
               >
-                {isExpired
-                  ? `Plan expired ${Math.abs(daysToExpiry)} days ago on ${formatDate(effectiveExpiry)}.`
-                  : `Plan ends on ${formatDate(effectiveExpiry)} — ${daysToExpiry} days remaining.`}
-              </Alert>
-            </Box>
-          )}
-        </Grid>
+                {emailLoading ? "Sending..." : "Send Email"}
+              </Button>
 
-        {/* Organization details */}
-        <Grid item xs={12} md={7}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: { xs: 2, md: 3 },
-              borderRadius: 2,
-              border: "1px solid",
-              borderColor: "divider",
-            }}
+              {emailMessage && (
+                <Alert
+                  severity={emailMessage.type === "success" ? "success" : "error"}
+                  variant="outlined"
+                  sx={{ py: 0, px: 1, alignItems: "center" }}
+                >
+                  <Typography variant="caption">{emailMessage.text}</Typography>
+                </Alert>
+              )}
+            </Stack>
+
+            {sub ? (
+              <Button
+                variant="contained"
+                color="primary"
+                size="small"
+                onClick={openConfirmRenew}
+                disabled={saving || subLoading}
+              >
+                Renew Plan
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                color="primary"
+                size="small"
+                onClick={openConfirmInit}
+                disabled={saving || subLoading}
+              >
+                Initialize Subscription
+              </Button>
+            )}
+          </Stack>
+        </Stack>
+      </Paper>
+
+      {saveError && (
+        <Box mb={2}>
+          <Alert severity="error" variant="outlined">
+            {saveError}
+          </Alert>
+        </Box>
+      )}
+      {subError && (
+        <Box mb={2}>
+          <Alert severity="warning" variant="outlined">
+            {subError}
+          </Alert>
+        </Box>
+      )}
+
+      {/* Expiry banner */}
+      {effectiveExpiry && (
+        <Box sx={{ mb: 2 }}>
+          <Alert
+            severity={isExpired ? "error" : daysToExpiry <= 30 ? "warning" : "info"}
+            variant="outlined"
           >
+            {isExpired
+              ? `Plan expired ${Math.abs(daysToExpiry)} days ago on ${formatDate(
+                  effectiveExpiry
+                )}.`
+              : `Plan ends on ${formatDate(effectiveExpiry)} — ${daysToExpiry} days remaining.`}
+          </Alert>
+        </Box>
+      )}
+
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={confirmOpen}
+        onClose={handleConfirmClose}
+        fullScreen={fullScreenDialog}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          {confirmKind === "init" ? "Initialize subscription?" : "Renew plan?"}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {confirmKind === "init"
+              ? `This will create a subscription for “${
+                  site?.name || "site"
+                }” with plan “${planKey || "plan"}”.`
+              : `This will extend the current “${
+                  planKey || "plan"
+                }” by ${planMonths(planKey)} months from ${
+                  effectiveExpiry && effectiveExpiry > new Date()
+                    ? `its current expiry (${formatDate(effectiveExpiry)})`
+                    : "today"
+                }.`}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleConfirmClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmProceed}
+            variant="contained"
+            color="primary"
+            disabled={saving}
+            autoFocus
+          >
+            {confirmKind === "init" ? "Initialize" : "Confirm Renew"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Grid container spacing={{ xs: 2, md: 3 }}>
+        {/* Organization + quick facts */}
+        <Grid item xs={12} md={7}>
+          <Paper elevation={0} sx={cardSx}>
             <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
               Organization Details
             </Typography>
-            <Divider sx={{ mb: 3 }} />
+            <Divider sx={{ mb: 2 }} />
             <Grid container spacing={{ xs: 2, md: 3 }}>
               <Grid item xs={12} sm={6}>
                 <Typography variant="body2" color="text.secondary" mb={0.5}>
@@ -524,15 +525,12 @@ const handleSendEmail = async () => {
                 <Typography variant="body2" color="text.secondary" mb={0.5}>
                   Users
                 </Typography>
-                <Typography variant="body1">
-                  {site.user ?? "—"}
-                </Typography>
+                <Typography variant="body1">{site.user ?? "—"}</Typography>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="body2" color="text.secondary" mb={0.5}>
                   Username
                 </Typography>
-                <Typography variant="body1"></Typography>
                 <Typography variant="body1">
                   {site.user_name || "—"}
                 </Typography>
@@ -542,19 +540,82 @@ const handleSendEmail = async () => {
                   Site URL/ID
                 </Typography>
                 <Typography variant="body1">
-                  {siteUrlDisplay(site.site_url)}
+                  <Link
+                    href={`https://${siteUrlDisplay(site.site_url)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    underline="hover"
+                    color="inherit"
+                  >
+                    {siteUrlDisplay(site.site_url)}
+                  </Link>
                 </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" color="text.secondary" mb={0.5}>
+                  Status
+                </Typography>
+                <Chip
+                  label={siteStatusDisplay(site)}
+                  size="small"
+                  color={statusColor}
+                  sx={{ height: "auto", px: 1, textTransform: "capitalize" }}
+                />
               </Grid>
             </Grid>
           </Paper>
         </Grid>
 
-        {/* Full-width sections with consistent grid spacing */}
+        {/* Alerts and current plan status card on the right column */}
+        {/* <Grid item xs={12} md={5}>
+          <Paper elevation={0} sx={cardSx}>
+            <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
+              Plan Status
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Stack spacing={1.5}>
+              <Typography variant="body2" color="text.secondary">
+                Current Plan
+              </Typography>
+              <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
+                <Chip
+                  label={site.plan || "No Plan"}
+                  size="small"
+                  sx={{ height: "auto", px: 1, textTransform: "capitalize" }}
+                />
+                {trialEnds && (
+                  <Chip
+                    label={`Trial ends: ${formatDate(trialEnds)}`}
+                    size="small"
+                    variant="outlined"
+                    color="warning"
+                    sx={{ height: "auto", px: 1 }}
+                  />
+                )}
+                {effectiveExpiry && (
+                  <Chip
+                    label={`Ends: ${formatDate(effectiveExpiry)}`}
+                    size="small"
+                    variant="outlined"
+                    color={isExpired ? "error" : "warning"}
+                    sx={{ height: "auto", px: 1 }}
+                  />
+                )}
+              </Stack>
+            </Stack>
+          </Paper>
+        </Grid> */}
+
+        {/* Full-width sections */}
         <Grid item xs={12}>
-          <RevenueSection siteId={siteId} />
+          <Paper elevation={0} sx={cardSx}>
+            <RevenueSection siteId={siteId} />
+          </Paper>
         </Grid>
         <Grid item xs={12}>
-          <ExpensesSection siteId={siteId} onSummaryChange={() => {}} />
+          <Paper elevation={0} sx={cardSx}>
+            <ExpensesSection siteId={siteId} onSummaryChange={() => {}} />
+          </Paper>
         </Grid>
       </Grid>
     </Container>
