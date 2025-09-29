@@ -218,6 +218,7 @@ export default function Dashboard() {
   const StatCard = ({ icon, label, value, extra }) => (
     <Paper
       elevation={6}
+      onClick={() => {navigate('/sites');}}
       sx={{
         minWidth: 400,
         width: "100%",
